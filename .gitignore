@@ -20,3 +20,9 @@ Thumbs.db
 venv
 node_modules
 .sass-cache
+dist/*
+
+# temp files
+*.swp
+*~
+.*.un~
