@@ -7,6 +7,7 @@
 
 import crypto from './crypto';
 import network from './network';
+import {Circuit} from './tor';
 
 export default {
 };
