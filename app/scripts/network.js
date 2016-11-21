@@ -7,4 +7,5 @@
 'use strict';
 
 export default {
-};
+}
+

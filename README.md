@@ -42,8 +42,16 @@ which will start a lightweight http server that you can access in the browser.
 
 `crypto`: Provides cryptographic functions.
 
-`network.js`: Provides higher-level interface to WebRTC connections (using abstract-tls).
+`network`: Provides higher-level interface to WebRTC connections (using abstract-tls).
 
-## Prior Art
+`storage`: Provides high level interface to local storage components, including keeping track of known peer lists and possibly filesharing applications.
+
+## References
+
+### Documentation
+
+[ECMAScript 2015](http://git.io/es6features), [WebRTC](https://webrtc.org/start/),
+
+### Prior Art
 
 [node-Tor](https://github.com/Ayms/node-Tor), [Peersm](http://www.peersm.com/)
