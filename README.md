@@ -91,7 +91,7 @@ We also provide a fallback signaling mechanism, in case the privileged nodes are
 
 ### Documentation
 
-[ECMAScript 2015](http://git.io/es6features), [WebRTC](https://webrtc.org/start/),
+[ECMAScript 2015](http://git.io/es6features), [WebRTC](https://webrtc.org/start/),[node-socksv5](https://github.com/mscdex/socksv5)
 
 ### Prior Art
 
