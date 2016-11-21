@@ -9,7 +9,7 @@ import buffer from 'vinyl-buffer';
 import uglify from 'gulp-uglify';
 import sourcemaps from 'gulp-sourcemaps';
 
-import watch from 'gulp-watch';
+import watchify from 'watchify';
 import serve from 'gulp-serve';
 import livereload from 'gulp-livereload';
 
@@ -48,40 +48,61 @@ function map_error(err) {
 	}
 }
 
-gulp.task('build', () => {
-	return browserify({
+function build(watch) {
+	let b = watchify(browserify({
 			"entries": paths.scripts,
 			debug: true,
-			basedir: bases.app,
+			basedir: bases.app
 		})
-		.transform("babelify", { presets: ["es2015"] })
-		.bundle()
-		.on('error', map_error)
-		.pipe(source('index.js'))
-		.pipe(buffer())
-		.pipe(sourcemaps.init())
-		.pipe(uglify())
-		.pipe(sourcemaps.write(paths.maps))
-		.pipe(gulp.dest(bases.dist + 'scripts/'))
-		.pipe(livereload());
+		.transform(babelify, { presets: ["es2015"] }));
+
+	function rebundle() {
+		return b.bundle()
+			.on('error', map_error)
+			.pipe(source('bundle.js'))
+			.pipe(buffer())
+			.pipe(sourcemaps.init({
+				loadMaps: true
+			}))
+			.pipe(uglify())
+			.pipe(sourcemaps.write(paths.maps))
+			.pipe(gulp.dest(bases.dist + 'scripts/'));
+	}
+
+	if (watch) {
+		b.on('update', () => {
+			console.log('-> bundling...');
+			rebundle();
+		});
+	}
+
+	return rebundle();
+}
+
+gulp.task('build', () => {
+	return build();
 });
 
 gulp.task('html', () => {
-	gulp.src(paths.html, {cwd: bases.app})
+	return gulp.src(paths.html, {cwd: bases.app})
 		.pipe(gulp.dest(bases.dist));
 });
 
 gulp.task('styles', () => {
-	gulp.src(paths.styles, {cwd: bases.app})
+	return gulp.src(paths.styles, {cwd: bases.app})
 		.pipe(gulp.dest(bases.dist + 'styles/'));
 });
 
 gulp.task('watch', ['html', 'styles', 'build'], function () {
-	livereload.listen();
+	gulp.watch(paths.styles, ['styles']);
+	gulp.watch(paths.html, ['html']);
 
-	watch(paths.scripts, ['build']);
+	livereload.listen();
+	build(true);
+
+	gulp.watch([bases.dist + '**']).on('change', livereload.changed);
 });
 
 gulp.task('serve', serve(bases.dist));
 
-gulp.task('default', ['watch']);
+gulp.task('default', ['build', 'html', 'styles']);
