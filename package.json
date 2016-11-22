@@ -36,6 +36,7 @@
     "watchify": "^3.7.0"
   },
   "dependencies": {
+    "net": "^1.0.2",
     "webcrypto": "^0.1.0",
     "webrtc": "^1.14.1",
     "webrtc-adapter": "^2.0.8"

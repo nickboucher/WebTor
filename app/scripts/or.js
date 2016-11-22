@@ -8,6 +8,13 @@
 import crypto from './crypto';
 import network from './network';
 
+/** peers
+ *
+ * This object keeps track of known peers for
+ * the network.
+ */
+export var peers = {};
+
 /** Circuit
  *
  * The Circuit class encapsulates the TOR

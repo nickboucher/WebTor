@@ -6,6 +6,8 @@
 
 'use strict';
 
+import types from './messagetypes';
+
 /** Connection
  *
  * This class handles abstraction for the WebRTC PeerConnection
@@ -30,6 +32,10 @@ export class Connection {
 		this.conn.onnegotiationneeded = this.sendOffer;
 		this.conn.ondatachannel = this.onChannelReceived;
 		//this.conn.onaddstream = this.onAddStream;
+
+		// signaling channel callbacks
+		this.signalingChannel.on(types.SIG_SDP, this.onDescriptionReceived);
+		this.signalingChannel.on(types.SIG_ICE, this.addIceCandidate);
 	}
 
 	/** onChannelReceived
@@ -39,24 +45,11 @@ export class Connection {
 	 */
 	onChannelReceived(evt) {
 		let rtcchan = evt.channel;
+		//XXX: figure out the actual id property
 		let chan = new Channel(null, rtcchan.id);
 		chan.conn = this;
 		chan.init(rtcchan);
-		this.channels[chan]
-	}
-
-	/** channel
-	 *
-	 * If there exists a channel on this connection with the specified
-	 * circID, it will be returned. If not, one will be created on the
-	 * channel, provided it's open, and subsequently returned.
-	 */
-	channel(circID) {
-		if (!this.channels[circID]) {
-			let chan = new Channel(this, circID);
-			this.channels[circID] = new Channel(this, circID);
-		}
-		return this.channels[circID];
+		this.channels[chan.circID] = chan;
 	}
 
 	/** sendOffer
@@ -130,6 +123,20 @@ export class Connection {
 	 */
 	onError(error) {
 		console.log(error.name + ": " + error.message);
+	}
+
+	/** channel
+	 *
+	 * If there exists a channel on this connection with the specified
+	 * circID, it will be returned. If not, one will be created on the
+	 * channel, provided it's open, and subsequently returned.
+	 */
+	channel(circID) {
+		if (!this.channels[circID]) {
+			let chan = new Channel(this, circID);
+			this.channels[circID] = new Channel(this, circID);
+		}
+		return this.channels[circID];
 	}
 }
 
