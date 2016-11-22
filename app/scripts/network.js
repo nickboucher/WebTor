@@ -146,11 +146,12 @@ export class Channel {
 		this.conn = conn;
 		this.circID = circID;
 		this.options = options;
+		this.callbacks = {};
 
 		// if no connection is specified, one will have to be added
 		// before the channel can be used
 		if (!this.conn) {
-			init();
+			this.init();
 		}
 	}
 
@@ -175,16 +176,51 @@ export class Channel {
 
 	/** sendMessage
 	 *
-	 * Send a raw message on the channel.
+	 * Send a raw message on the channel. Note that at this point message should
+	 * already be a javascript Blob object. The data will be send in binary over
+	 * the connection.
 	 */
-	sendMessage(message) {
+	sendMessage(msg_blob) {
+		// initialize the datachannel if it's not ready yet
+		if (!this.dataChannel) {
+			this.init();
+		}
+
+		this.dataChannel.send(msg_blob);
+	}
+
+	/** addMessageCallback
+	 *
+	 * This function allows you to add a function to be called under certain
+	 * conditions when messages are received on this channel. Where `test` is
+	 * a callable which returns true when a msg is such that 
+	 */
+	addMessageCallback(label, test, run) {
+		this.callbacks[label] = {"test": test, "run": run};
+	}
+
+	/** removeMessageCallback
+	 *
+	 * This function removes a callback with the given label from
+	 * the callbacks that will be invoked on a message receipt
+	 */
+	removeMessageCallback(label) {
+		delete this.callbacks[label];
 	}
 
 	/** onMessage
 	 *
 	 * handles messages received on the channel.
 	 */
-	onMessage() {
+	onMessage(evt) {
+		let msg = evt.data;
+		for (let prop in this.callbacks) {
+			if (this.callbacks.hasOwnProperty(prop)
+			   	&& this.callbacks[prop].test(msg))
+		   	{
+				this.callback[prop].run(msg);
+			}
+		}
 	}
 
 	/** onOpen
@@ -192,6 +228,7 @@ export class Channel {
 	 * Handles the status change of the channel to open.
 	 */
 	onOpen() {
+		console.log("channel " + this.circID + " opened");
 	}
 
 	/** onClose
@@ -199,6 +236,7 @@ export class Channel {
 	 * Handles the status change of the channel to closed.
 	 */
 	onClose() {
+		console.log("channel " + this.circID + " opened");
 	}
 
 	/** onError
