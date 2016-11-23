@@ -6,13 +6,14 @@
 'use strict'; //what does this mean?
 
 export default {
-//similar to do_encrypt
-function encrypt(){}
+	//similar to do_encrypt
+	encrypt() {
+	},
 
-//similar to do_decrypt
-function decrypt(){}
-
-};
+	//similar to do_decrypt
+	decrypt() {
+	}
+}
 
 
 

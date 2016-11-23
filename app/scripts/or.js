@@ -95,5 +95,13 @@ export default {
 	 * available, it will synchronously create one and then send the request.
 	 */
 	sendRequest() {
+	},
+
+	/** addPeer()
+	 *
+	 * This method should be called whenever a message is received
+	 * indicating a new peer
+	 */
+	addPeer() {
 	}
 };

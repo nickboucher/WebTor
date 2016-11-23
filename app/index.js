@@ -8,8 +8,9 @@
  */
 'use strict';
 
-import op from './op';
-import or from './or';
+import $ from 'jquery';
+import op from './scripts/op';
+import or from './scripts/or';
 
 /** window.TestPrint
  *

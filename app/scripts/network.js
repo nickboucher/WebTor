@@ -8,6 +8,8 @@
 
 import types from './messagetypes';
 
+export var connections = {};
+
 /** Connection
  *
  * This class handles abstraction for the WebRTC PeerConnection
@@ -256,4 +258,18 @@ export class Channel {
 }
 
 export default {
+	/** This function will open a new connection to
+	 * the given ID, if possible.
+	 */
+	makeConnection(id, signalingChannel) {
+		return new Promise((accept, reject) => {
+			if (id in connections) {
+				reject("connection open");
+			}
+
+			connections[id] = new Connection(id, signalingChannel);
+			// start the connection process
+			connections[id].sendOffer();
+		})
+	}
 }

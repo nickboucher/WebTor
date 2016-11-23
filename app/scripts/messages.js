@@ -13,7 +13,7 @@ export default {
 	 * with properties `type`, `id`, `version`, and `payload`.
 	 */
 	decodeMessage(message) {
-	}
+	},
 
 	/** encodeMessage
 	 *
@@ -21,7 +21,7 @@ export default {
 	 * format.
 	 */
 	encodeMessage(obj) {
-	}
+	},
 
 	/** decodeRelayPayload
 	 *
@@ -29,14 +29,14 @@ export default {
 	 * raw Blob to a javascript object.
 	 */
 	decodeRelayPayload(payload) {
-	}
+	},
 
 	/** encodeRelayPayload
 	 *
 	 * This function encodes obj into the on-the-wire Blob format
 	 */
 	encodeRelayPayload(obj) {
-	}
+	},
 
 	/** decodeSignalingPayload
 	 *
@@ -45,7 +45,7 @@ export default {
 	 * to a javascript object.
 	 */
 	decodeSignalingPayload(payload) {
-	}
+	},
 
 	/** encodeSignalingPayload
 	 *
@@ -54,5 +54,5 @@ export default {
 	 * for sending over the wire.
 	 */
 	encodeSignalingPayload(obj) {
-	}
+	},
 }

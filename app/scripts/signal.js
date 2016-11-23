@@ -9,6 +9,11 @@ import messages from './messages';
 import types from './messagetypes';
 import {Connection, Channel} from './network';
 
+// this variable is used by all signaling channel types, and it allows
+// callbacks to be added to abstract signal channels so that messages of
+// any type from any source may be intercepted
+let static_callbacks = {};
+
 /** PeerSigRouter
  *
  * This class is the abstract routing protocol which
@@ -50,20 +55,12 @@ export class PeerSigRouter {
  */
 export class PeerSigChannel extends Channel {
 	constructor(conn, circID, options = { ordered: true }) {
-		this.signalConns = {};
 		super(conn, circID, options);
-
 		super.on(types.SIGNAL, this.onSignal);
 	}
 
 	on(type, id, callback) {
-		if (!type in this.callbacks) {
-			this.callbacks[type] = {};
-		}
-		if (!id in this.callbacks[type]) {
-			this.callbacks[type][id] = [];
-		}
-		this.callbacks[type][id].push(callback);
+		add_callback(this.callbacks, type, id, callback);
 	}
 
 	onSignal(data) {
@@ -91,31 +88,43 @@ export class PeerSigChannel extends Channel {
 	}
 }
 
+
 /** SockSigChannel
  *
  * This class represents a raw socket signaling channel, primarily used
  * for signaling to or from a bridge node.
  */
 export class SockSigChannel {
-	constructor(sock) {
-		this.sock = sock;
+	constructor(url) {
 		this.callbacks = {};
 
-		this.sock.on('data', this.onData);
-		this.sock.on('close', this.onClose);
+		if (url) {
+			this.open(url);
+		}
+	}
+
+	open(url) {
+		if (this.sock) {
+			this.sock.close();
+		}
+
+		this.sock = new WebSocket(url);
+		this.sock.onmessage = this.onSignal;
+		this.sock.onclose = this.onClose;
+	}
+
+	close() {
+		this.sock.close();
 	}
 
 	on(type, id, callback) {
-		if (!type in this.callbacks) {
-			this.callbacks[type] = {};
-		}
-		if (!id in this.callbacks[type]) {
-			this.callbacks[type][id] = [];
-		}
-		this.callbacks[type][id].push(callback);
+		add_callback(this.callbacks, type, id, callback);
 	}
 
 	onSignal(data) {
+		console.log(data);
+		return 0;
+
 		let msg = messages.decodeMessage(data);
 
 		switch (msg.type) {
@@ -123,17 +132,11 @@ export class SockSigChannel {
 				// decode the actual signal message
 				let payload = messages.decodeSignalingPayload(msg.payload);
 
-				// if there are any callbacks for this type of signal
-				// and this id, then invoke them on the payload data
-				if (payload.type in this.callbacks) {
-					if (payload.id in this.callbacks[payload.type]) {
-						for (let callback in this.callbacks[payload.type][payload.id]) {
-							callback(payload.data);
-						}
-					}
-				}
+				invoke_callbacks(static_callbacks, payload.type, payload.id, payload.data);
+				invoke_callbacks(this.callbacks, payload.type, payload.id, payload.data);
+
 				break;
-			case default:
+			default:
 				console.log('bad message received');
 		}
 	}
@@ -152,6 +155,7 @@ export class SockSigChannel {
 			'id': id,
 			'payload': sig
 		});
+		this.sock.send(message);
 	}
 
 	sendSDP(id, desc) {
@@ -174,13 +178,7 @@ export class ManualSigChannel {
 	}
 
 	on(type, id, callback) {
-		if (!type in this.callbacks) {
-			this.callbacks[type] = {};
-		}
-		if (!id in this.callbacks[type]) {
-			this.callbacks[type][id] = [];
-		}
-		this.callbacks[type][id].push(callback);
+		add_callback(this.callbacks, type, id, callback);
 	}
 
 	onSignal(data) {
@@ -197,4 +195,62 @@ export class ManualSigChannel {
 }
 
 export default {
+	on(type, id, callback) {
+		this.add_callback(static_callbacks, type, id, callback);
+	},
+
+	add_callback(cbs, type, id, cb) {
+		if (!type in cbs) {
+			cbs[type] = {};
+		}
+		if (!id in cbs[type]) {
+			cbs[type][id] = [];
+		}
+		cbs[type][id].push(cb);
+	},
+
+	invoke_static_callbacks(type, id, data) {
+		this.invoke_callbacks(static_callbacks, type, id, data);
+	},
+
+	/** invoke_callbacks
+	 *
+	 * this function serves to invoke all the callbacks matching
+	 * the specified type and id, or callbacks intended to be invoked
+	 * for arbitrary value of these
+	 */
+	invoke_callbacks(cbs, type, id, data) {
+		// definite type callbacks invoked first
+		if (type in cbs) {
+			// definite id callbacks invoked first
+			if (id in cbs[type]) {
+				for (let cb in cbs[type][id]) {
+					cb(data);
+				}
+			}
+
+			// then definite type, indefinite id
+			if (null in cbs[type]) {
+				for (let cb in cbs[type][null]) {
+					cb(data);
+				}
+			}
+		}
+
+		if (null in cbs) {
+			//indefinite type, definite id
+			if (id in cbs[null]) {
+				for (let cb in cbs[null][id]) {
+					cb(data);
+				}
+			}
+
+			//indefinite type, indefinite id
+			if (null in cbs[null]) {
+				for (let cb in cbs[null][null]) {
+					cb(data);
+				}
+			}
+		}
+	}
 };

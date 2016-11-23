@@ -31,12 +31,13 @@ export default {
 	//AUTHORIZE: 132,
 
 	// signaling message types
-	SIG_SDP: 256,		// SDP message for signaling
-	SIG_ICE: 257,		// ICE Candidate message
-	SIG_NEW_PEER: 258,
-	SIG_BAD_PEER: 259,	// indicates a bad peer (left or malicious)
-	SIG_REQ_PEERLIST: 260, // requests a peerlist
-	SIG_PEERLIST: 261, 	// list of valid peers
+	SIG_ID: 256, 		// signal for identification
+	SIG_SDP: 257,		// SDP message for signaling
+	SIG_ICE: 258,		// ICE Candidate message
+	SIG_NEW_PEER: 259,
+	SIG_BAD_PEER: 260,	// indicates a bad peer (left or malicious)
+	SIG_REQ_PEERLIST: 261, // requests a peerlist
+	SIG_PEERLIST: 262, 	// list of valid peers
 
 	// DESTROY/TRUNCATED error codes
 	NONE: 0,

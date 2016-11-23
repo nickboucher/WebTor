@@ -18,11 +18,13 @@ import chalk from 'chalk';
 
 var bases = {
 	app: 'app/',
-	dist: 'dist/',
+	webdist: 'dist/web/',
+	nodedist: 'dist/node/'
 };
 
 var paths = {
-	scripts: ['./scripts/index.js'],
+	app: ['./index.js'],
+	bridge: ['./server.js'],
 	html: ['./*.html'],
 	worker: ['./worker.js'],
 	styles: ['./styles/**/*.css'],
@@ -49,9 +51,9 @@ function map_error(err) {
 	}
 }
 
-function build(watch) {
+function build_app(watch) {
 	let b = watchify(browserify({
-			"entries": paths.scripts,
+			"entries": paths.app,
 			debug: true,
 			basedir: bases.app
 		})
@@ -67,7 +69,7 @@ function build(watch) {
 			}))
 			.pipe(uglify())
 			.pipe(sourcemaps.write(paths.maps))
-			.pipe(gulp.dest(bases.dist + 'scripts/'));
+			.pipe(gulp.dest(bases.webdist));
 	}
 
 	if (watch) {
@@ -80,35 +82,72 @@ function build(watch) {
 	return rebundle();
 }
 
-gulp.task('build', () => {
-	return build();
+function build_bridge(watch) {
+	let b = watchify(browserify({
+			"entries": paths.bridge,
+			debug: true,
+			builtins: false,
+			basedir: bases.app
+		})
+		.transform(babelify, { presets: ["es2015"] }));
+
+	function rebundle() {
+		return b.bundle()
+			.on('error', map_error)
+			.pipe(source('bridge.js'))
+			.pipe(buffer())
+			.pipe(sourcemaps.init({
+				loadMaps: true
+			}))
+			.pipe(uglify())
+			.pipe(sourcemaps.write(paths.maps))
+			.pipe(gulp.dest(bases.nodedist));
+	}
+
+	if (watch) {
+		b.on('update', () => {
+			console.log('-> bundling...');
+			rebundle();
+		});
+	}
+
+	return rebundle();
+}
+
+gulp.task('app', () => {
+	return build_app();
+});
+
+gulp.task('bridge', () => {
+	return build_bridge();
 });
 
 gulp.task('html', () => {
 	return gulp.src(paths.html, {cwd: bases.app})
-		.pipe(gulp.dest(bases.dist));
+		.pipe(gulp.dest(bases.webdist));
 });
 
 gulp.task('worker', () => {
 	return gulp.src(paths.worker, {cwd: bases.app})
-		.pipe(gulp.dest(bases.dist));
+		.pipe(gulp.dest(bases.webdist));
 });
 
 gulp.task('styles', () => {
 	return gulp.src(paths.styles, {cwd: bases.app})
-		.pipe(gulp.dest(bases.dist + 'styles/'));
+		.pipe(gulp.dest(bases.webdist));
 });
 
-gulp.task('watch', ['html', 'styles', 'build'], function () {
+gulp.task('watch', ['app', 'bridge', 'html', 'styles', 'worker'], function () {
 	gulp.watch(paths.styles, ['styles']);
 	gulp.watch(paths.html, ['html']);
 
 	livereload.listen();
-	build(true);
+	build_app(true);
+	build_bridge(true);
 
-	gulp.watch([bases.dist + '**']).on('change', livereload.changed);
+	gulp.watch([bases.webdist + '**']).on('change', livereload.changed);
 });
 
-gulp.task('serve', serve(bases.dist));
+gulp.task('serve', serve(bases.webdist));
 
-gulp.task('default', ['build', 'html', 'styles', 'worker']);
+gulp.task('default', ['app', 'bridge', 'html', 'styles', 'worker']);
