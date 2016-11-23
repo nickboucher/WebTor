@@ -10,17 +10,25 @@
 	<link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
-	<div class="webtor-nav">
+	<!-- Container Div to enable aesthetic layout -->
+	<div class="container">
+
 		<!-- Insert header code (WebTor interface) here to act as a
 		floating banner at the top of the screen -->
+		<div class="webtor-nav">
+			<!-- Buttons enable testing of the EventWorker installations -->
+			<button id="register" type="button">Register Worker</button>
+			<button id="unregister" type="button">Unregister Workers</button><br>
+			URL: <input type="text" name="adress" placeholder="Not Implemented">
+			<button id="go" type="button">Load Page</button>
+		</div>
+
+		<!-- This iframe will be used to display the iframe for the loaded page -->
+	 	<iframe class="iframe-body"></iframe>
+
 	</div>
 
-	<!--<button onclick="TestPrint()">Click me</button>-->
-
-	<!-- This iframe will be used to display the iframe for the loaded page -->
- 	<iframe sandbox class="iframe-body">
-	</iframe>
-
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 	<script src="scripts/bundle.js"></script>
 </body>
 </html>

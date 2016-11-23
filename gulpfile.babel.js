@@ -23,7 +23,8 @@ var bases = {
 
 var paths = {
 	scripts: ['./scripts/index.js'],
-	html: ['./index.html'],
+	html: ['./*.html'],
+	worker: ['./worker.js'],
 	styles: ['./styles/**/*.css'],
 	maps: './maps',
 };
@@ -88,6 +89,11 @@ gulp.task('html', () => {
 		.pipe(gulp.dest(bases.dist));
 });
 
+gulp.task('worker', () => {
+	return gulp.src(paths.worker, {cwd: bases.app})
+		.pipe(gulp.dest(bases.dist));
+});
+
 gulp.task('styles', () => {
 	return gulp.src(paths.styles, {cwd: bases.app})
 		.pipe(gulp.dest(bases.dist + 'styles/'));
@@ -105,4 +111,4 @@ gulp.task('watch', ['html', 'styles', 'build'], function () {
 
 gulp.task('serve', serve(bases.dist));
 
-gulp.task('default', ['build', 'html', 'styles']);
+gulp.task('default', ['build', 'html', 'styles', 'worker']);

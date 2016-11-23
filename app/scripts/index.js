@@ -20,3 +20,32 @@ import or from './or';
 window.TestPrint = function() {
 	console.log('testing');
 }
+
+/** EventWorker installtion bindings
+ * For example only -- to be moved for final release */
+ $(document).ready(function() {
+	 $("#register").click(function(){
+		 if ('serviceWorker' in navigator) {
+			 navigator.serviceWorker.register('worker.js').then(function(registration) {
+				 // Registration was successful
+				 alert('ServiceWorker registration successful with scope: ' + registration.scope);
+			 }).catch(function(err) {
+				 // registration failed :(
+				 alert('ServiceWorker registration failed: ' + err);
+			 });
+		 } else {
+			 alert("ServiceWorkers not supported.");
+		 }
+	 });
+	 $("#unregister").click(function(){
+		 navigator.serviceWorker.getRegistrations().then(function(registrations) {
+			 for(let registration of registrations) {
+				 registration.unregister();
+			 }
+			 alert("Removed all workers.")
+		 });
+	 });
+	 $("#go").click(function(){
+		 $(".iframe-body").attr("src", "example-request.html")
+	 });
+ });
