@@ -5,6 +5,19 @@
  * Router singleton. This routing singleton should also be used to establish
  * all new connections, as it is designed to robustly handle routing, so long
  * as it has been set up with at least on Bridge and a manual signaling channel.
+ *
+ * Example usage:
+ *
+ * import {Router} from './signal';
+ * import types from './messagetypes';
+ * import messages from './messages';
+ *
+ * // in router initialization, invoke the arrow function when a signal
+ * // on any channel of type SIG_NEW_PEER is received, from any ID
+ * Router.on(types.SIG_NEW_PEER, null, (data) => {
+ * 		let new_peer = messages.decodeMessage(types.SIG_NEW_PEER, data);
+ *		// do something with the new peer--as yet undecided prototype
+ * });
  */
 
 'use strict';

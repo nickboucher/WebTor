@@ -2,11 +2,34 @@
  *
  * This module implements the low-level network functionality, providing
  * a higher level interface for establishing peer connections through WebRTC
+ *
+ * Example creation:
+ *
+ * import net from './network';
+ * import {Router} from './signal';
+ *
+ * // id is a hash of some identifying information for a peer
+ * // in Circuit Create, maybe
+ * net.getChannel(id, circID).then((channel) => {
+ * 		this.next = channel;
+ *		// send a CREATED message back to this.prev or something
+ * });
+ *
+ *
+ * Example callback:
+ *
+ * import {Channel} from './network';
+ * import types from './messagetypes';
+ *
+ * // in Circuit constructor maybe, this.prev is an already-open channel
+ * this.prev.on(types.RELAY, this.relay);
+ * this.prev.on(null, this.logMessage);
  */
 
 'use strict';
 
 import types from './messagetypes';
+import {Router} from './signal';
 
 export var connections = {};
 
@@ -28,6 +51,11 @@ export class Connection {
 		this.id = id;
 		this.signalingChannel = signalingChannel;
 		this.channels = {};
+
+		// default to the singleton router object
+		if (!this.signalingChannel) {
+			this.signalingChannel = Router;
+		}
 
 		this.conn = new RTCPeerConnection();
 		this.conn.onicecandidate = this.onIceCandidate;
@@ -186,35 +214,26 @@ export class Channel {
 	/** sendMessage
 	 *
 	 * Send a raw message on the channel. Note that at this point message should
-	 * already be a javascript Blob object. The data will be send in binary over
-	 * the connection.
+	 * already be a javascript Blob object or other binary stream data. 
+	 * The data will be send in binary over the connection.
 	 */
 	sendMessage(msg_blob) {
 		// initialize the datachannel if it's not ready yet
 		if (!this.dataChannel) {
 			this.init();
 		}
+		//XXX: maybe asymmetric encryption here?
 
 		this.dataChannel.send(msg_blob);
 	}
 
 	/** addMessageCallback
 	 *
-	 * This function allows you to add a function to be called under certain
-	 * conditions when messages are received on this channel. Where `test` is
-	 * a callable which returns true when a msg is such that 
+	 * This function allows you to add a function to be called when
+	 * a message of the specified type has been received.
 	 */
-	addMessageCallback(label, test, run) {
-		this.callbacks[label] = {"test": test, "run": run};
-	}
-
-	/** removeMessageCallback
-	 *
-	 * This function removes a callback with the given label from
-	 * the callbacks that will be invoked on a message receipt
-	 */
-	removeMessageCallback(label) {
-		delete this.callbacks[label];
+	on(type, callback) {
+		Channel.addCallback(type, callback, this.callbacks);
 	}
 
 	/** onMessage
@@ -222,12 +241,13 @@ export class Channel {
 	 * handles messages received on the channel.
 	 */
 	onMessage(evt) {
-		let msg = evt.data;
-		for (let prop in this.callbacks) {
-			if (this.callbacks.hasOwnProperty(prop)
-			   	&& this.callbacks[prop].test(msg))
-		   	{
-				this.callback[prop].run(msg);
+		//XXX: maybe asymmetric decryption here?
+		let msg = messages.decodeRawMessage(evt.data);
+		if (msg.type in this.callbacks) {
+			for (let cb in this.callbacks[msg.type]) {
+				// call it on the raw payload blob, which may be further
+				// encrypted, etc.
+				cb(msg.payload);
 			}
 		}
 	}
@@ -255,6 +275,18 @@ export class Channel {
 	onError(error) {
 		console.log(error.name + ": " + error.message);
 	}
+
+	/** addCallback
+	 *
+	 * This function will robustly add a callback to the 
+	 * specified callback structure.
+	 */
+	static addCallback(type, cb, cbs) {
+		if (!type in cbs) {
+			cbs[type] = [];
+		}
+		cbs[type].push(cb);
+	}
 }
 
 export default {
@@ -268,8 +300,17 @@ export default {
 			}
 
 			connections[id] = new Connection(id, signalingChannel);
+			connections[id].on()
 			// start the connection process
 			connections[id].sendOffer();
 		})
+	},
+
+	/**
+	 * this function will give back an open data channel to the specified
+	 * id with the specified circuit ID, handling all the circuit creations
+	 * and signaling necessary to make that happen
+	 */
+	getChannel(id, circID, signalingChannel) {
 	}
 }
