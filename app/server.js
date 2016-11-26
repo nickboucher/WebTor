@@ -11,7 +11,7 @@ import net from 'net';
 import network from './scripts/network';
 import types from './scripts/messagetypes';
 import messages from './scripts/messages';
-import sig from './scripts/signal';
+import {SockSigChannel} from './scripts/signal';
 import or from './scripts/or';
 
 const HOST = '127.0.0.1';
@@ -40,7 +40,9 @@ export class SignalServer {
 		console.log("got connection...");
 		// just create a new signaling channel, which will handle all its
 		// own shit with callbacks
-		var signalingChannel = new SockSigChannel(sock);
+		// note that this is intentionally global-scoped--deletion should
+		// happen as a response to a closed socket
+		var signalingChannel = new ServerSockSigChannel(sock);
 	}
 
 	handleError(err) {
@@ -50,16 +52,11 @@ export class SignalServer {
 	handleClose() {
 		console.log("server closed");
 	}
-};
+}
 
-/** SockSigChannel
- *
- * This class represents a raw socket signaling channel, primarily used
- * for signaling to from a bridge node. The implementation in this file uses
- * a node net.Socket, rather than a WebSocket, as in network.js.
- */
-export class SockSigChannel {
+class ServerSockSigChannel extends SockSigChannel {
 	constructor(sock) {
+		super();
 		this.sock = sock;
 		this.callbacks = {};
 
@@ -78,59 +75,6 @@ export class SockSigChannel {
 		this.sock.connect(port, host);
 		this.sock.on('data', this.onSignal);
 		this.sock.on('close', this.onClose);
-	}
-
-	close() {
-		this.sock.close();
-	}
-
-	on(type, id, callback) {
-		sig.add_callback(this.callbacks, type, id, callback);
-	}
-
-	onSignal(data) {
-		console.log(data);
-		return 0;
-
-		let msg = messages.decodeMessage(data);
-
-		switch (msg.type) {
-			case types.SIGNAL:
-				// decode the actual signal message
-				let payload = messages.decodeSignalingPayload(msg.payload);
-
-				sig.invoke_static_callbacks(payload.type, payload.id, payload.data);
-				sig.invoke_callbacks(this.callbacks, payload.type, payload.id, payload.data);
-
-				break;
-			default:
-				console.log('bad message received');
-		}
-	}
-
-	onClose(data) {
-	}
-
-	sendSignal(type, id, signal) {
-		let payload = signal;
-		let sig = messages.encodeSignalingPayload({
-			'type': type,
-		   	'id': id,
-		   	'payload': payload});
-		let message = messages.encodeMessage({
-			'type': types.SIGNAL,
-			'id': id,
-			'payload': sig
-		});
-		this.send(message);
-	}
-
-	sendSDP(id, desc) {
-		this.sendSignal(types.SIG_SDP, id, desc);
-	}
-
-	sendCandidate(id, candidate) {
-		this.sendSignal(types.SIG_SDP, id, candidate);
 	}
 }
 
