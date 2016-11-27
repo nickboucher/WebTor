@@ -5,29 +5,28 @@
  */
 'use strict'; //what does this mean?
 
-import NodeRSA from 'node-rsa'
-import crypto from 'crypto'
+import NodeRSA from 'node-rsa';
+import crypto from 'crypto';
 
+//RSA
+//uses rsa implementation by Tom Wy http://www-cs-students.stanford.edu/~tjw/jsbn/
+//creation of a RSA environment, key management has to be improved
+var key = new NodeRSA({b: 512});
+
+// // or load from a .pem file see https://www.npmjs.com/package/node-rsa
+// var key = new NodeRSA('-----BEGIN RSA PRIVATE KEY-----\n'+
+//                   'MIIBOQIBAAJAVY6quuzCwyOWzymJ7C4zXjeV/232wt2ZgJZ1kHzjI73wnhQ3WQcL\n'+
+//                   'DFCSoi2lPUW8/zspk0qWvPdtp6Jg5Lu7hwIDAQABAkBEws9mQahZ6r1mq2zEm3D/\n'+
+//                   'VM9BpV//xtd6p/G+eRCYBT2qshGx42ucdgZCYJptFoW+HEx/jtzWe74yK6jGIkWJ\n'+
+//                   'AiEAoNAMsPqwWwTyjDZCo9iKvfIQvd3MWnmtFmjiHoPtjx0CIQCIMypAEEkZuQUi\n'+
+//                   'pMoreJrOlLJWdc0bfhzNAJjxsTv/8wIgQG0ZqI3GubBxu9rBOAM5EoA4VNjXVigJ\n'+
+//                   'QEEk1jTkp8ECIQCHhsoq90mWM/p9L5cQzLDWkTYoPI49Ji+Iemi2T5MRqwIgQl07\n'+
+//                   'Es+KCn25OKXR/FJ5fu6A6A+MptABL3r8SEjlpLc=\n'+
+//                   '-----END RSA PRIVATE KEY-----');
+// key.importKey(keyData, [format]);
+// key.exportKey([format]);
 
 export default {
-	//RSA
-	//uses rsa implementation by Tom Wy http://www-cs-students.stanford.edu/~tjw/jsbn/
-	//creation of a RSA environment, key management has to be improved
-	var key = new NodeRSA({b: 512});
-
-	// // or load from a .pem file see https://www.npmjs.com/package/node-rsa
-	// var key = new NodeRSA('-----BEGIN RSA PRIVATE KEY-----\n'+
-    //                   'MIIBOQIBAAJAVY6quuzCwyOWzymJ7C4zXjeV/232wt2ZgJZ1kHzjI73wnhQ3WQcL\n'+
-    //                   'DFCSoi2lPUW8/zspk0qWvPdtp6Jg5Lu7hwIDAQABAkBEws9mQahZ6r1mq2zEm3D/\n'+
-    //                   'VM9BpV//xtd6p/G+eRCYBT2qshGx42ucdgZCYJptFoW+HEx/jtzWe74yK6jGIkWJ\n'+
-    //                   'AiEAoNAMsPqwWwTyjDZCo9iKvfIQvd3MWnmtFmjiHoPtjx0CIQCIMypAEEkZuQUi\n'+
-    //                   'pMoreJrOlLJWdc0bfhzNAJjxsTv/8wIgQG0ZqI3GubBxu9rBOAM5EoA4VNjXVigJ\n'+
-    //                   'QEEk1jTkp8ECIQCHhsoq90mWM/p9L5cQzLDWkTYoPI49Ji+Iemi2T5MRqwIgQl07\n'+
-    //                   'Es+KCn25OKXR/FJ5fu6A6A+MptABL3r8SEjlpLc=\n'+
-    //                   '-----END RSA PRIVATE KEY-----');
-	// key.importKey(keyData, [format]);
-	// key.exportKey([format]);
-
 	/*
 	encrypt_rsa(key, text)
 	computes the rsa encryption with 512b key
@@ -85,6 +84,4 @@ export default {
 		decrypted += decipher.final('utf8');
 		return decrypted;
 	},
-
-
 }
