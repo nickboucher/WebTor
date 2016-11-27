@@ -9,10 +9,14 @@
  * import {Router} from './signal';
  *
  * // id is a hash of some identifying information for a peer
- * // in Circuit Create, maybe
+ * // in Circuit extend, maybe
  * net.getChannel(id, circID).then((channel) => {
  * 		this.next = channel;
- *		// send a CREATED message back to this.prev or something
+ *
+ *		// setup a callback to send 
+ *		// a CREATED message back to this.prev or something
+ *
+ *		// send or pass along CREATE message with DH handshake info
  * });
  *
  *
@@ -184,6 +188,8 @@ export class Channel {
 		this.circID = circID;
 		this.options = options;
 		this.callbacks = {};
+		this.enc = null;
+		this.dec = null;
 
 		// if no connection is specified, one will have to be added
 		// before the channel can be used
@@ -211,6 +217,22 @@ export class Channel {
 		this.dataChannel.onerror = this.onError;
 	}
 
+	/** setKey
+	 *
+	 * This function may be used to encrypt or unencrypt the data stream.
+	 * The enc function should take a plaintext data blob (of arbitrary
+	 * size) and return an encrypted data blob. The dec function should
+	 * take a ciphertext data blob and return a plaintext data blob.
+	 *
+	 * This can be set to just symmetric enc+dec, or a composition of symmetric
+	 * and asymmetric crypto to add authentication. This handling is left to
+	 * the caller.
+	 */
+	setEncryption(enc, dec) {
+		this.enc = enc;
+		this.dec = dec;
+	}
+
 	/** sendMessage
 	 *
 	 * Send a raw message on the channel. Note that at this point message should
@@ -222,7 +244,10 @@ export class Channel {
 		if (!this.dataChannel) {
 			this.init();
 		}
-		//XXX: maybe asymmetric encryption here?
+
+		if (this.enc != null) {
+			msg_blob = this.enc(msg_blob);
+		}
 
 		this.dataChannel.send(msg_blob);
 	}
@@ -241,8 +266,12 @@ export class Channel {
 	 * handles messages received on the channel.
 	 */
 	onMessage(evt) {
-		//XXX: maybe asymmetric decryption here?
-		let msg = messages.decodeRawMessage(evt.data);
+		let raw_msg = evt.data;
+		if (this.dec) {
+			raw_msg = this.dec(raw_msg);
+		}
+
+		let msg = messages.decodeRawMessage(raw_msg);
 		if (msg.type in this.callbacks) {
 			for (let cb in this.callbacks[msg.type]) {
 				// call it on the raw payload blob, which may be further
@@ -300,10 +329,13 @@ export default {
 			}
 
 			connections[id] = new Connection(id, signalingChannel);
+
+			// accept when the connection is complete, reject if it fails
 			connections[id].on()
+
 			// start the connection process
 			connections[id].sendOffer();
-		})
+		});
 	},
 
 	/**
@@ -312,5 +344,21 @@ export default {
 	 * and signaling necessary to make that happen
 	 */
 	getChannel(id, circID, signalingChannel) {
+		return new Promise((accept, reject) => {
+			if (id in connections) {
+				// if there's already a connection to the ID, return the valid
+				// channel
+				accept(connections[id].channel(circID));
+			} else {
+				// otherwise make one and then return it
+				this.makeConnection(id, signalingChannel)
+					.then((connection) => {
+						accept(connection.channel(circID));
+					})
+					.catch((err) => {
+						reject(err);
+					});
+			}
+		});
 	}
 }
