@@ -87,6 +87,44 @@ We also provide a fallback signaling mechanism, in case the privileged nodes are
 
 ### Network Properties
 
+### Messages
+
+#### Object Representation
+
+Base cells have the format:
+
+```json
+{
+	"version": 1,
+	"type": (int),
+	"id": (string),
+	"payload": (Blob)
+}
+```
+
+where "type" is an integer encoding the message type--"command" in the TOR spec, but extended to include `SIGNAL` messages, with some other message types deprecated.
+
+Relay cells are of the form:
+
+```json
+{
+	"command": (int),
+	"payload": (Blob)
+}
+```
+
+and signal cells are of the form:
+
+```json
+{
+	"type": (int),
+	"id": (string),
+	"payload": (Blob)
+}
+```
+
+#### Binary Encoding
+
 ## References
 
 ### Documentation
