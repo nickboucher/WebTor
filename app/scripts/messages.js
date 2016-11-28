@@ -21,6 +21,7 @@ export default {
 			throw "Bad object";
 			return null;
 		}
+		// constant version
 		obj.version = 1;
 
 		let buffer = Buffer.alloc(6);
@@ -73,6 +74,12 @@ export default {
 		if (!"command" in obj || !"payload" in obj) {
 			throw "Bad relay cell";
 		}
+
+		let buffer = Buffer.alloc(2);
+		buffer.writeUInt16LE(obj.command, 0);
+
+		buffer = Buffer.concat([buffer, obj.payload]);
+		return buffer;
 	},
 
 	/** decodeRelayPayload
@@ -81,6 +88,13 @@ export default {
 	 * raw Buffer to a javascript object.
 	 */
 	decodeRelayPayload(payload) {
+		let buffer = Buffer.from(payload);
+
+		let obj = {};
+		obj.command = buffer.readUInt16LE(buffer, 0);
+		obj.payload = buffer.slice(2);
+
+		return obj;
 	},
 
 	/** encodeSignalingPayload
@@ -92,7 +106,19 @@ export default {
 	encodeSignalingPayload(obj) {
 		if (!"type" in obj || !"id" in obj) {
 			throw "Bad object";
+			return null;
 		}
+
+		let buffer = Buffer.alloc(6);
+
+		buffer.writeUInt16LE(obj.type, 0);
+		buffer.writeUInt32LE(obj.id, 2);
+
+		if ("payload" in obj) {
+			buffer = Buffer.concat([buffer, obj.payload]);
+		}
+
+		return buffer;
 	},
 
 	/** decodeSignalingPayload
@@ -102,5 +128,21 @@ export default {
 	 * to a javascript object.
 	 */
 	decodeSignalingPayload(payload) {
+		let buffer = Buffer.from(payload);
+
+		if (buffer.length < 6) {
+			throw "payload too small";
+			return null;
+		}
+
+		let obj = {};
+
+		obj.type = buffer.readUInt16LE(0);
+		obj.id = buffer.readUInt32LE(2);
+		if (buffer.length > 6) {
+			obj.payload = buffer.slice(6);
+		}
+
+		return obj;
 	}
 }
