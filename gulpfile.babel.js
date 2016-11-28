@@ -16,6 +16,8 @@ import livereload from 'gulp-livereload';
 import gutil from 'gulp-util';
 import chalk from 'chalk';
 
+import mocha from 'gulp-mocha';
+
 var bases = {
 	app: 'app/',
 	webdist: 'dist/web/',
@@ -28,6 +30,7 @@ var paths = {
 	html: ['./*.html'],
 	worker: ['./worker.js'],
 	styles: ['./styles/**/*.css'],
+	tests: ['./test/**/*.js'],
 	maps: './maps',
 };
 
@@ -135,6 +138,15 @@ gulp.task('worker', () => {
 gulp.task('styles', () => {
 	return gulp.src(paths.styles, {cwd: bases.app})
 		.pipe(gulp.dest(bases.webdist));
+});
+
+gulp.task('test', () => {
+	return gulp.src(paths.tests, {cwd: bases.app})
+		.pipe(mocha({
+			compilers: [
+				'js:babel-core/register',
+			]
+		}));
 });
 
 gulp.task('watch', ['app', 'bridge', 'html', 'styles', 'worker'], function () {

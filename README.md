@@ -95,9 +95,9 @@ Base cells have the format:
 
 ```json
 {
-	"version": 1,
-	"type": (int),
-	"id": (string),
+	"version": (byte),
+	"type": (byte),
+	"id": (long),
 	"payload": (Blob)
 }
 ```
@@ -108,7 +108,7 @@ Relay cells are of the form:
 
 ```json
 {
-	"command": (int),
+	"command": (byte),
 	"payload": (Blob)
 }
 ```
@@ -117,8 +117,8 @@ and signal cells are of the form:
 
 ```json
 {
-	"type": (int),
-	"id": (string),
+	"type": (byte),
+	"id": (long),
 	"payload": (Blob)
 }
 ```
