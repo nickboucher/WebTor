@@ -271,7 +271,7 @@ export class Channel {
 			raw_msg = this.dec(raw_msg);
 		}
 
-		let msg = messages.decodeRawMessage(raw_msg);
+		let msg = messages.decodeMessage(raw_msg);
 		if (msg.type in this.callbacks) {
 			for (let cb in this.callbacks[msg.type]) {
 				// call it on the raw payload blob, which may be further

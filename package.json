@@ -46,6 +46,7 @@
     "mixin": "^0.2.0",
     "net": "^1.0.2",
     "node-rsa": "^0.4.2",
+    "rfc-3548-b32": "0.0.2",
     "webcrypto": "^0.1.0",
     "webrtc": "^1.14.1",
     "webrtc-adapter": "^2.0.8"

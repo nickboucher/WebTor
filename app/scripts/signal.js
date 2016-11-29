@@ -23,6 +23,8 @@
 'use strict';
 
 import mixin from 'mixin';
+import base32 from 'rfc-3548-b32';
+
 import messages from './messages';
 import types from './messagetypes';
 import {Channel} from './network';
@@ -62,20 +64,20 @@ class SignalChannel {
 	 * to the decoded signal.
 	 */
 	onSignal(data) {
-		console.log(data);
-		return 0;
+		try {
+			let msg = messages.decodeMessage(data);
 
-		let msg = messages.decodeMessage(data);
-
-		switch (msg.type) {
-			case types.SIGNAL:
-				// decode the actual signal message
-				let payload = messages.decodeSignalingPayload(msg.payload);
-
-				this.invokeCallbacks(payload.type, payload.id, payload.data);
-				break;
-			default:
-				console.log('bad message received');
+			switch (msg.type) {
+				case types.SIGNAL:
+					// decode the actual signal message
+					let payload = messages.decodePayload(msg.type, msg.payload);
+					this.invokeCallbacks(payload.type, payload.id, payload.data);
+					break;
+				default:
+					console.log('bad message received');
+			}
+		} catch(e) {
+			console.log(e);
 		}
 	}
 
@@ -108,15 +110,15 @@ class SignalChannel {
 	 * using the messages encode functions
 	 */
 	buildSignal(type, id, signal) {
-		let payload = signal;
-		let sig = messages.encodeSignalingPayload({
+		let sig = messages.encodeSignalPayload(type, signal);
+		let payload = messages.encodePayload(types.SIGNAL, {
 			'type': type,
 		   	'id': id,
-		   	'payload': payload});
+		   	'payload': sig});
 		let message = messages.encodeMessage({
 			'type': types.SIGNAL,
 			'id': id,
-			'payload': sig
+			'payload': payload
 		});
 		return message;
 	}
@@ -344,7 +346,15 @@ export class SockSigChannel extends SignalChannel {
 export class ManualSigChannel extends SignalChannel {
 	constructor() {
 		super();
-		//XXX: add a hook to let the gui invoke this.onSignal
+		this.hooks = [];
+	}
+
+	addDisplayHook(callback) {
+		this.hooks.push(callback);
+	}
+
+	onSignal(signal) {
+		return super.onSignal(base32.decode(signal));
 	}
 
 	/** sendSignal
@@ -355,7 +365,11 @@ export class ManualSigChannel extends SignalChannel {
 	 */
 	sendSignal(type, id, signal) {
 		let message = this.buildSignal(type, id, signal);
-		//XXX: display signal in the GUI somehow
+		//encode to base32 to send out-of-band
+		let messagestring = base32.encode(message);
+		for (let hook in this.hooks) {
+			hook(messagestring);
+		}
 	}
 }
 
@@ -367,7 +381,23 @@ export class ManualSigChannel extends SignalChannel {
  */
 export var Router = new SignalRouter();
 
+/** Manual
+ *
+ * This singleton object serves as the primary manual signaling channel for
+ * this system. Others may be added if necessary.
+ */
+export var Manual = new ManualSigChannel();
+
 export default {
+	/** init
+	 *
+	 * This function does the global state initialization for the signaling
+	 * subsystem.
+	 */
+	init() {
+		Router.addManualChannel(Manual);
+	},
+
 	/** on
 	 *
 	 * This function will add a static callback, to be invoked whenever any
