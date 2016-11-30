@@ -22,9 +22,9 @@
 
 'use strict';
 
-import mixin from 'mixin';
 import base32 from 'rfc-3548-b32';
 
+import Queue from 'qv2';
 import messages from './messages';
 import types from './messagetypes';
 import {Channel} from './network';
@@ -70,8 +70,9 @@ class SignalChannel {
 			switch (msg.type) {
 				case types.SIGNAL:
 					// decode the actual signal message
-					let payload = messages.decodePayload(msg.type, msg.payload);
-					this.invokeCallbacks(payload.type, payload.id, payload.data);
+					let payload = messages.decodeMessagePayload(msg.type, msg.payload);
+					let signal = messages.decodeSignalPayload(payload.type, payload.payload);
+					this.invokeCallbacks(payload.type, payload.id, signal);
 					break;
 				default:
 					console.log('bad message received');
@@ -88,8 +89,8 @@ class SignalChannel {
 	 * class
 	 */
 	invokeCallbacks(type, id, data) {
-		SignalChannel.invokeCallbacks(type, id, cb, static_callbacks);
-		SignalChannel.invokeCallbacks(type, id, cb, this.callbacks);
+		SignalChannel.invokeCallbacks(type, id, data, static_callbacks);
+		SignalChannel.invokeCallbacks(type, id, data, this.callbacks);
 	}
 
 	/** sendSignal
@@ -111,7 +112,7 @@ class SignalChannel {
 	 */
 	buildSignal(type, id, signal) {
 		let sig = messages.encodeSignalPayload(type, signal);
-		let payload = messages.encodePayload(types.SIGNAL, {
+		let payload = messages.encodeMessagePayload(types.SIGNAL, {
 			'type': type,
 		   	'id': id,
 		   	'payload': sig});
@@ -128,7 +129,7 @@ class SignalChannel {
 	 * shortcut for sending an offer
 	 */
 	sendSDP(id, desc) {
-		this.sendSignal(types.SIG_SDP, id, desc);
+		this.sendSignal(types.SIG_SDP, id, JSON.stringify(desc));
 	}
 
 	/** sendCandidate
@@ -136,7 +137,7 @@ class SignalChannel {
 	 * shortcut for sending an ICE candidate
 	 */
 	sendCandidate(id, candidate) {
-		this.sendSignal(types.SIG_SDP, id, candidate);
+		this.sendSignal(types.SIG_ICE, id, JSON.stringify(candidate));
 	}
 
 	/** addCallback
@@ -145,10 +146,10 @@ class SignalChannel {
 	 * specified callback structure.
 	 */
 	static addCallback(type, id, cb, cbs) {
-		if (!type in cbs) {
+		if (!(type in cbs)) {
 			cbs[type] = {};
 		}
-		if (!id in cbs[type]) {
+		if (!(id in cbs[type])) {
 			cbs[type][id] = [];
 		}
 		cbs[type][id].push(cb);
@@ -165,14 +166,14 @@ class SignalChannel {
 		if (type in cbs) {
 			// definite id callbacks invoked first
 			if (id in cbs[type]) {
-				for (let cb in cbs[type][id]) {
+				for (let cb of cbs[type][id]) {
 					cb(data);
 				}
 			}
 
 			// then definite type, indefinite id
 			if (null in cbs[type]) {
-				for (let cb in cbs[type][null]) {
+				for (let cb of cbs[type][null]) {
 					cb(data);
 				}
 			}
@@ -181,14 +182,14 @@ class SignalChannel {
 		if (null in cbs) {
 			//indefinite type, definite id
 			if (id in cbs[null]) {
-				for (let cb in cbs[null][id]) {
+				for (let cb of cbs[null][id]) {
 					cb(data);
 				}
 			}
 
 			//indefinite type, indefinite id
 			if (null in cbs[null]) {
-				for (let cb in cbs[null][null]) {
+				for (let cb of cbs[null][null]) {
 					cb(data);
 				}
 			}
@@ -207,9 +208,13 @@ class SignalChannel {
 export class SignalRouter extends SignalChannel {
 	constructor() {
 		super();
+
 		this.sigchannels = {};
 		this.sigchannels['bridge'] = [];
 		this.sigchannels['manual'] = [];
+
+		// explicit prebinding of callback methods
+		this.onSignal = this.onSignal.bind(this);
 	}
 
 	/** addBridgeChannel
@@ -263,13 +268,15 @@ export class SignalRouter extends SignalChannel {
 /** PeerSigChannel
  *
  * This class is the abstraction for a signaling channel
- * implemented over the tor network. Several of these
- * can be used together to do signaling using a PeerSigRouter.
+ * implemented over the tor network.
  */
-export class PeerSigChannel extends mixin(Channel, SignalChannel) {
+export class PeerSigChannel extends SignalChannel {
 	constructor(conn, circID, options = { ordered: true }) {
-		super(conn, circID, options);
-		super.on(types.SIGNAL, this.onSignal);
+		super(); 	//SignalChannel constructor
+
+		// get or create a channel for the new circuit
+		this.chan = conn.channel(circID, options);
+		this.chan.on(types.SIGNAL, super.onSignal);
 	}
 
 	/** sendSignal
@@ -279,7 +286,7 @@ export class PeerSigChannel extends mixin(Channel, SignalChannel) {
 	 */
 	sendSignal(type, id, signal) {
 		let message = this.buildSignal(type, id, signal);
-		this.sendMessage(message);
+		this.chan.sendMessage(message);
 	}
 }
 
@@ -291,6 +298,9 @@ export class PeerSigChannel extends mixin(Channel, SignalChannel) {
 export class SockSigChannel extends SignalChannel {
 	constructor(url) {
 		super();
+		// explicit prebinding of callback methods
+		this.onClose = this.onClose.bind(this);
+
 		if (url) {
 			this.open(url);
 		}
@@ -346,7 +356,14 @@ export class SockSigChannel extends SignalChannel {
 export class ManualSigChannel extends SignalChannel {
 	constructor() {
 		super();
+		this.messages = new Queue();
 		this.hooks = [];
+	}
+
+	next() {
+		for (let hook of this.hooks) {
+			hook(this.messages.dequeue());
+		}
 	}
 
 	addDisplayHook(callback) {
@@ -354,7 +371,8 @@ export class ManualSigChannel extends SignalChannel {
 	}
 
 	onSignal(signal) {
-		return super.onSignal(base32.decode(signal));
+		let data = base32.decode(signal);
+		return super.onSignal(data);
 	}
 
 	/** sendSignal
@@ -367,9 +385,7 @@ export class ManualSigChannel extends SignalChannel {
 		let message = this.buildSignal(type, id, signal);
 		//encode to base32 to send out-of-band
 		let messagestring = base32.encode(message);
-		for (let hook in this.hooks) {
-			hook(messagestring);
-		}
+		this.messages.enqueue(messagestring);
 	}
 }
 

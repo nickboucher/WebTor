@@ -298,35 +298,33 @@ export default {
 	},
 
 	encodeSignalPayload(type, signal) {
-		let buffer;
+		let buffer = Buffer.from(signal);
 		switch(type) {
 			case types.SIG_ID:
 				throw "unimplemented";
-				return null;
+				return buffer;
 
 			case types.SIG_SDP:
-				throw "unimplemented";
-				return null;
+				return buffer;
 
 			case types.SIG_ICE:
-				throw "unimplemented";
-				return null;
+				return buffer;
 
 			case types.SIG_NEW_PEER:
 				throw "unimplemented";
-				return null;
+				return buffer;
 
 			case types.SIG_BAD_PEER:
 				throw "unimplemented";
-				return null;
+				return buffer;
 
 			case types.SIG_REQ_PEERLIST:
 				throw "unimplemented";
-				return null;
+				return buffer;
 
 			case types.SIG_PEERLIST:
 				throw "unimplemented";
-				return null;
+				return buffer;
 
 			default:
 				throw "bad signal type";
@@ -341,31 +339,29 @@ export default {
 		switch(type) {
 			case types.SIG_ID:
 				throw "unimplemented";
-				return null;
+				return buffer.toString();
 
 			case types.SIG_SDP:
-				throw "unimplemented";
-				return null;
+				return JSON.parse(buffer.toString());
 
 			case types.SIG_ICE:
-				throw "unimplemented";
-				return null;
+				return JSON.parse(buffer.toString());
 
 			case types.SIG_NEW_PEER:
 				throw "unimplemented";
-				return null;
+				return buffer.toString();
 
 			case types.SIG_BAD_PEER:
 				throw "unimplemented";
-				return null;
+				return buffer.toString();
 
 			case types.SIG_REQ_PEERLIST:
 				throw "unimplemented";
-				return null;
+				return buffer.toString();
 
 			case types.SIG_PEERLIST:
 				throw "unimplemented";
-				return null;
+				return buffer.toString();
 
 			default:
 				throw "bad signal type";

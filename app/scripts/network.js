@@ -10,7 +10,7 @@
  *
  * // id is a hash of some identifying information for a peer
  * // in Circuit extend, maybe
- * net.getChannel(id, circID).then((channel) => {
+ * net.getChannel(id, label).then((channel) => {
  * 		this.next = channel;
  *
  *		// setup a callback to send 
@@ -55,35 +55,73 @@ export class Connection {
 		this.id = id;
 		this.signalingChannel = signalingChannel;
 		this.channels = {};
+		this.callbacks = {};
 
 		// default to the singleton router object
 		if (!this.signalingChannel) {
 			this.signalingChannel = Router;
 		}
 
-		this.conn = new RTCPeerConnection();
-		this.conn.onicecandidate = this.onIceCandidate;
-		this.conn.onnegotiationneeded = this.sendOffer;
-		this.conn.ondatachannel = this.onChannelReceived;
-		//this.conn.onaddstream = this.onAddStream;
+		// prebinding for callback methods
+		this.handleDescriptionReceived = this.handleDescriptionReceived.bind(this);
+		this.handleIceCandidateReceived = this.handleIceCandidateReceived.bind(this);
 
+		this.handleConnectionStateChange = this.handleConnectionStateChange.bind(this);
+		this.handleNegotiationNeeded = this.handleNegotiationNeeded.bind(this);
+		this.handleIceCandidate = this.handleIceCandidate.bind(this);
+		this.handleDataChannel = this.handleDataChannel.bind(this);
+
+		// create connections
+		this.conn = new RTCPeerConnection();
+		this.conn.onconnectionstatechange = this.handleConnectionStateChange;
+		this.conn.onnegotiationneeded = this.handleNegotiationNeeded;
+		this.conn.onicecandidate = this.handleIceCandidate;
+		this.conn.ondatachannel = this.handleDataChannel;
+		this.conn.oniceconnectionstatechange = evt => {
+			console.log('conn ' + this.id + ': ice connection state: ' + this.conn.iceConnectionState);
+		};
+		this.conn.onsignalingstatechange = evt => {
+			console.log('conn ' + this.id + ': signaling state: ' + this.conn.signalingState);
+		};
+		//this.conn.onaddstream = this.onAddStream;
+		
 		// signaling channel callbacks
-		this.signalingChannel.on(types.SIG_SDP, this.onDescriptionReceived);
-		this.signalingChannel.on(types.SIG_ICE, this.addIceCandidate);
+		this.signalingChannel.on(types.SIG_SDP, id, this.handleDescriptionReceived);
+		this.signalingChannel.on(types.SIG_ICE, id, this.handleIceCandidateReceived);
 	}
 
-	/** onChannelReceived
+	/** channel
 	 *
-	 * This function serves as the callback for an incoming data channel. It
-	 * adds a new data channel to the internal object that stores data channels.
+	 * If there exists a channel on this connection with the specified
+	 * label, it will be returned. If not, one will be created on the
+	 * channel, provided it's open, and subsequently returned.
 	 */
-	onChannelReceived(evt) {
-		let rtcchan = evt.channel;
-		//XXX: figure out the actual id property
-		let chan = new Channel(null, rtcchan.id);
-		chan.conn = this;
-		chan.init(rtcchan);
-		this.channels[chan.circID] = chan;
+	channel(label, options={reliable: true}) {
+		if (!(label in this.channels)) {
+			let chan = new Channel(this, label, options);
+			this.channels[label] = chan;
+		}
+		return this.channels[label];
+	}
+
+	createDataChannel(label, options) {
+		return this.conn.createDataChannel(label, options);
+	}
+
+	on(evstr, cb) {
+		if (!(evstr in this.callbacks)) {
+			this.callbacks[evstr] = [];
+		}
+		this.callbacks[evstr].push(cb);
+	}
+
+	signal(evstr) {
+		console.log('connection ' + this.id + ' ' + evstr);
+		if (evstr in this.callbacks) {
+			for (let cb of this.callbacks[evstr]) {
+				cb();
+			}
+		}
 	}
 
 	/** sendOffer
@@ -95,9 +133,9 @@ export class Connection {
 	sendOffer() {
 		this.conn.createOffer()
 			.then(offer => this.conn.setLocalDescription(offer))
-			.then(() => signalingChannel.sendSDP(this.id,
-			   	JSON.stringify(this.conn.localDescription)))
-			.catch(this.onError);
+			.then(() => this.signalingChannel.sendSDP(this.id,
+			   	this.conn.localDescription))
+			.catch(this.handleError);
 	}
 
 	/** sendAnswer
@@ -109,68 +147,76 @@ export class Connection {
 	sendAnswer() {
 		this.conn.createAnswer()
 			.then(answer => this.conn.setLocalDescription(answer))
-			.then(() => signalingChannel.sendSDP(this.id,
-			   	JSON.stringify(this.conn.localDescription)))
-			.catch(this.onError);
+			.then(() => this.signalingChannel.sendSDP(this.id,
+			   this.conn.localDescription))
+			.catch(this.handleError);
 	}
 
-	/** onDescriptionReceived
-	 *
-	 * This function will set the new remote description to that received on the
-	 * signaling channel. Note that this function should be called by the
-	 * signaling mechanism when the appropriate signal is received.
-	 */
-	onDescriptionReceived(desc) {
-		this.conn.setRemoteDescription(desc, () => {
-			if (this.conn.remoteDescription.type == 'offer') {
-				this.sendAnswer();
-			}
-		});
+	handleConnectionStateChange(evt) {
+		this.signal(this.conn.connectionState);
 	}
 
-	/** onIceCandidate
+	handleNegotiationNeeded(evt) {
+		this.sendOffer();
+	}
+
+	/** handleIceCandidate
 	 *
 	 * This is the callback function which is invoked whenever the currently
 	 * being established connection finds a valid ICE candidate that needs
 	 * to be sent to the peer it's trying to connect to. It uses the signaling
 	 * channel in indicate the new ice candidate to its peer.
 	 */
-	onIceCandidate(evt) {
-		if (evt.candidate) {
+	handleIceCandidate(evt) {
+		console.log('conn ' + this.id + ': got ice candidate: ' + evt.candidate);
+		if (evt && evt.candidate) {
 			this.signalingChannel.sendCandidate(this.id, evt.candidate);
 		}
 	}
 
-	/** addIceCandidate
+	/** handleDescriptionReceived
+	 *
+	 * This function will set the new remote description to that received on the
+	 * signaling channel. Note that this function should be called by the
+	 * signaling mechanism when the appropriate signal is received.
+	 */
+	handleDescriptionReceived(desc) {
+		this.conn.setRemoteDescription(new RTCSessionDescription(desc), () => {
+			if (this.conn.remoteDescription.type === 'offer') {
+				this.sendAnswer();
+			}
+		});
+	}
+
+	/** handleIceCandidateReceived
 	 *
 	 * This function should be called whenever a new ICE candidate is received
 	 * by the signaling mechanism from the relevant peer. Endgame, this will
 	 * be done by an event-based architecture.
 	 */
-	addIceCandidate(candidate) {
+	handleIceCandidateReceived(candidate) {
 		this.conn.addIceCandidate(new RTCIceCandidate(candidate))
 	}
 
-	/** onError
+	/** handleDataChannel
+	 *
+	 * This function serves as the callback for an incoming data channel. It
+	 * adds a new data channel to the internal object that stores data channels.
+	 */
+	handleDataChannel(evt) {
+		let rtcchan = evt.channel;
+		let chan = new Channel(null, rtcchan.label);
+		chan.conn = this;
+		chan.init(rtcchan);
+		this.channels[chan.label] = chan;
+	}
+
+	/** handleError
 	 *
 	 * This function will log errors.
 	 */
-	onError(error) {
+	handleError(error) {
 		console.log(error.name + ": " + error.message);
-	}
-
-	/** channel
-	 *
-	 * If there exists a channel on this connection with the specified
-	 * circID, it will be returned. If not, one will be created on the
-	 * channel, provided it's open, and subsequently returned.
-	 */
-	channel(circID) {
-		if (!this.channels[circID]) {
-			let chan = new Channel(this, circID);
-			this.channels[circID] = new Channel(this, circID);
-		}
-		return this.channels[circID];
 	}
 }
 
@@ -179,21 +225,27 @@ export class Connection {
  * The Channel abstraction is used as a direct data channel between the
  * local browser iteration and a remote one, through a Connection. Each
  * Connection can have many Channels, with different IDs. Each channel is
- * tied to a single circuit through a circID value, which acts as the channel's
+ * tied to a single circuit through a label value, which acts as the channel's
  * ID as well.
  */
 export class Channel {
-	constructor(conn, circID, options = { ordered: true }) {
+	constructor(conn, label, options = { ordered: true, reliable: true }) {
 		this.conn = conn;
-		this.circID = circID;
+		this.label = label;
 		this.options = options;
 		this.callbacks = {};
 		this.enc = null;
 		this.dec = null;
 
+		// explicit prebinding of callback methods
+		this.handleMessage = this.handleMessage.bind(this);
+		this.handleOpen = this.handleOpen.bind(this);
+		this.handleClose = this.handleClose.bind(this);
+		this.handleError = this.handleError.bind(this);
+
 		// if no connection is specified, one will have to be added
 		// before the channel can be used
-		if (!this.conn) {
+		if (this.conn) {
 			this.init();
 		}
 	}
@@ -206,15 +258,15 @@ export class Channel {
 	init(channel) {
 		if (!channel) {
 			this.dataChannel = this.conn.createDataChannel(
-				this.circID, this.options);
+				this.label, this.options);
 		} else {
 			this.dataChannel = channel;
 		}
 
-		this.dataChannel.onmessage = this.onMessage;
-		this.dataChannel.onopen = this.onOpen;
-		this.dataChannel.onclose = this.onClose;
-		this.dataChannel.onerror = this.onError;
+		this.dataChannel.onmessage = this.handleMessage;
+		this.dataChannel.onopen = this.handleOpen;
+		this.dataChannel.onclose = this.handleClose;
+		this.dataChannel.onerror = this.handleError;
 	}
 
 	/** setKey
@@ -261,11 +313,12 @@ export class Channel {
 		Channel.addCallback(type, callback, this.callbacks);
 	}
 
-	/** onMessage
+	/** handleMessage
 	 *
 	 * handles messages received on the channel.
 	 */
-	onMessage(evt) {
+	handleMessage(evt) {
+		console.log('received message on chan ' + this.label + ': ' + evt.data);
 		let raw_msg = evt.data;
 		if (this.dec) {
 			raw_msg = this.dec(raw_msg);
@@ -281,27 +334,27 @@ export class Channel {
 		}
 	}
 
-	/** onOpen
+	/** handleOpen
 	 *
 	 * Handles the status change of the channel to open.
 	 */
-	onOpen() {
-		console.log("channel " + this.circID + " opened");
+	handleOpen() {
+		console.log("channel " + this.label + " opened");
 	}
 
-	/** onClose
+	/** handleClose
 	 *
 	 * Handles the status change of the channel to closed.
 	 */
-	onClose() {
-		console.log("channel " + this.circID + " opened");
+	handleClose() {
+		console.log("channel " + this.label + " opened");
 	}
 
-	/** onError
+	/** handleError
 	 *
 	 * Print to the console on an error
 	 */
-	onError(error) {
+	handleError(error) {
 		console.log(error.name + ": " + error.message);
 	}
 
@@ -311,7 +364,7 @@ export class Channel {
 	 * specified callback structure.
 	 */
 	static addCallback(type, cb, cbs) {
-		if (!type in cbs) {
+		if (!(type in cbs)) {
 			cbs[type] = [];
 		}
 		cbs[type].push(cb);
@@ -326,15 +379,14 @@ export default {
 		return new Promise((accept, reject) => {
 			if (id in connections) {
 				reject("connection open");
+				return;
 			}
 
 			connections[id] = new Connection(id, signalingChannel);
-
-			// accept when the connection is complete, reject if it fails
-			connections[id].on()
-
 			// start the connection process
 			connections[id].sendOffer();
+
+			accept(connections[id]);
 		});
 	},
 
@@ -343,17 +395,17 @@ export default {
 	 * id with the specified circuit ID, handling all the circuit creations
 	 * and signaling necessary to make that happen
 	 */
-	getChannel(id, circID, signalingChannel) {
+	getChannel(id, label, signalingChannel) {
 		return new Promise((accept, reject) => {
 			if (id in connections) {
 				// if there's already a connection to the ID, return the valid
 				// channel
-				accept(connections[id].channel(circID));
+				accept(connections[id].channel(label));
 			} else {
 				// otherwise make one and then return it
 				this.makeConnection(id, signalingChannel)
 					.then((connection) => {
-						accept(connection.channel(circID));
+						accept(connection.channel(label));
 					})
 					.catch((err) => {
 						reject(err);

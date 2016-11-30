@@ -8,9 +8,14 @@
  */
 'use strict';
 
+import 'webrtc';
 import $ from 'jquery';
+import 'buffer';
+
 import op from './scripts/op';
 import or from './scripts/or';
+import {Manual} from './scripts/signal';
+import network, {Connection} from './scripts/network';
 
 /** window.TestPrint
  *
@@ -18,19 +23,48 @@ import or from './scripts/or';
  * console when called. This is the form that any exposed functions
  * should take if they need to be called by the browser.
  */
-window.TestPrint = function() {
+window.TestPrint = () =>  {
 	console.log('testing');
 }
 
+//XXX: remove before deploy
+$(document).ready(() =>  {
+	// set the display hook for the manual signaling channel
+	Manual.addDisplayHook((string) => {
+		$("#sig-send").text(string);
+	});
+	$("#man-recv").click(() => {
+		let conn = new Connection(1234, Manual);
+	});
+	$("#man-start").click(() => {
+		let chan = network.getChannel(1234, 'testing', Manual);
+	});
+	$("#man-next").click(() => {
+		Manual.next();
+	});
+	$("#man-accept").click(() => {
+		let data = $("#sig-recv").val();
+		// invoke the onSignal command with the received string
+		if (data.length > 0) {
+			try {
+				Manual.onSignal(data);
+			} catch(e) {
+				// show the error if it failed
+				$("#sig-error").text("ERROR: " + e);
+			}
+		}
+	});
+});
+
 /** EventWorker installtion bindings
  * For example only -- to be moved for final release */
- $(document).ready(function() {
-	 $("#register").click(function(){
+ $(document).ready(() =>  {
+	 $("#register").click(() => {
 		 if ('serviceWorker' in navigator) {
-			 navigator.serviceWorker.register('worker.js').then(function(registration) {
+			 navigator.serviceWorker.register('worker.js').then((registration) => {
 				 // Registration was successful
 				 alert('ServiceWorker registration successful with scope: ' + registration.scope);
-			 }).catch(function(err) {
+			 }).catch((err) => {
 				 // registration failed :(
 				 alert('ServiceWorker registration failed: ' + err);
 			 });
@@ -38,15 +72,15 @@ window.TestPrint = function() {
 			 alert("ServiceWorkers not supported.");
 		 }
 	 });
-	 $("#unregister").click(function(){
-		 navigator.serviceWorker.getRegistrations().then(function(registrations) {
+	 $("#unregister").click(() => {
+		 navigator.serviceWorker.getRegistrations().then((registrations) => {
 			 for(let registration of registrations) {
 				 registration.unregister();
 			 }
 			 alert("Removed all workers.")
 		 });
 	 });
-	 $("#go").click(function(){
+	 $("#go").click(() => {
 		 $(".iframe-body").attr("src", "example-request.html")
 	 });
  });

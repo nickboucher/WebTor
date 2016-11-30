@@ -16,6 +16,20 @@
 		<!-- Insert header code (WebTor interface) here to act as a
 		floating banner at the top of the screen -->
 		<div class="webtor-nav">
+			<!-- Form for manual signaling -->
+			<div id="sig-error"></div><br/>
+			Send: <textarea rows="4" cols="50" id="sig-send" disabled="true"></textarea><br/>
+			Recv: <textarea rows="4" cols="50" id="sig-recv"></textarea><br/>
+			<button id="man-start" type="button">Start Connection</button>
+			<button id="man-recv" type="button">Receive Connection</button>
+			<button id="man-accept" type="button">Accept Data</button>
+			<button id="man-next" type="button">Next Signal</button><br/><br/>
+
+
+			<!-- Form to create a bridge -->
+			Host: <input type="text" name="hoststring" placeholder="localhost:9000">
+			<button id="bridge-connect" type="button">Connect</button><br/><br/>
+
 			<!-- Buttons enable testing of the EventWorker installations -->
 			<button id="register" type="button">Register Worker</button>
 			<button id="unregister" type="button">Unregister Workers</button><br>
@@ -25,7 +39,6 @@
 
 		<!-- This iframe will be used to display the iframe for the loaded page -->
 	 	<iframe class="iframe-body"></iframe>
-
 	</div>
 
 	<script src="bundle.js"></script>
