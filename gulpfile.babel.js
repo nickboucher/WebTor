@@ -166,3 +166,6 @@ gulp.task('watch', ['app', 'bridge', 'html', 'styles', 'worker'], function () {
 gulp.task('serve', serve(bases.webdist));
 
 gulp.task('default', ['app', 'bridge', 'html', 'styles', 'worker']);
+
+gulp.on('stop', () => { process.exit(0); });
+gulp.on('err', () => { process.exit(1); });
