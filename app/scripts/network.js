@@ -33,7 +33,7 @@
 'use strict';
 
 import types from './messagetypes';
-import {Router} from './signal';
+import sig, {Router} from './signal';
 
 export var connections = {};
 
@@ -372,6 +372,13 @@ export class Channel {
 }
 
 export default {
+	start() {
+		sig.init();
+		sig.on(types.SIG_SDP, null, (desc, type, id, chan) => {
+			this.makeConnection(id);
+		});
+	},
+
 	/** This function will open a new connection to
 	 * the given ID, if possible.
 	 */

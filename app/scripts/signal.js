@@ -42,6 +42,7 @@ let static_callbacks = {};
 class SignalChannel {
 	constructor() {
 		this.callbacks = {};
+		this.onSignal = this.onSignal.bind(this);
 	}
 
 	/** on
@@ -89,8 +90,8 @@ class SignalChannel {
 	 * class
 	 */
 	invokeCallbacks(type, id, data) {
-		SignalChannel.invokeCallbacks(type, id, data, static_callbacks);
-		SignalChannel.invokeCallbacks(type, id, data, this.callbacks);
+		SignalChannel.invokeCallbacks(type, id, data, static_callbacks, this);
+		SignalChannel.invokeCallbacks(type, id, data, this.callbacks, this);
 	}
 
 	/** sendSignal
@@ -161,20 +162,20 @@ class SignalChannel {
 	 * the specified type and id, or callbacks intended to be invoked
 	 * for arbitrary value of these
 	 */
-	static invokeCallbacks(type, id, data, cbs) {
+	static invokeCallbacks(type, id, data, cbs, chan) {
 		// definite type callbacks invoked first
 		if (type in cbs) {
 			// definite id callbacks invoked first
 			if (id in cbs[type]) {
 				for (let cb of cbs[type][id]) {
-					cb(data);
+					cb(data, type, id, chan);
 				}
 			}
 
 			// then definite type, indefinite id
 			if (null in cbs[type]) {
 				for (let cb of cbs[type][null]) {
-					cb(data);
+					cb(data, type, id, chan);
 				}
 			}
 		}
@@ -183,14 +184,14 @@ class SignalChannel {
 			//indefinite type, definite id
 			if (id in cbs[null]) {
 				for (let cb of cbs[null][id]) {
-					cb(data);
+					cb(data, type, id, chan);
 				}
 			}
 
 			//indefinite type, indefinite id
 			if (null in cbs[null]) {
 				for (let cb of cbs[null][null]) {
-					cb(data);
+					cb(data, type, id, chan);
 				}
 			}
 		}
@@ -212,9 +213,6 @@ export class SignalRouter extends SignalChannel {
 		this.sigchannels = {};
 		this.sigchannels['bridge'] = [];
 		this.sigchannels['manual'] = [];
-
-		// explicit prebinding of callback methods
-		this.onSignal = this.onSignal.bind(this);
 	}
 
 	/** addBridgeChannel
@@ -271,11 +269,11 @@ export class SignalRouter extends SignalChannel {
  * implemented over the tor network.
  */
 export class PeerSigChannel extends SignalChannel {
-	constructor(conn, circID, options = { ordered: true }) {
+	constructor(conn, label, options = { ordered: true }) {
 		super(); 	//SignalChannel constructor
 
 		// get or create a channel for the new circuit
-		this.chan = conn.channel(circID, options);
+		this.chan = conn.channel(label, options);
 		this.chan.on(types.SIGNAL, super.onSignal);
 	}
 

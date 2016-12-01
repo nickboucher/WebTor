@@ -90,7 +90,10 @@ function build_bridge(watch) {
 			"entries": paths.bridge,
 			debug: true,
 			builtins: false,
-			basedir: bases.app
+			basedir: bases.app,
+			insertGlobalVars: {
+				process: function() { return; }
+			}
 		})
 		.transform(babelify, { presets: ["es2015"] }));
 

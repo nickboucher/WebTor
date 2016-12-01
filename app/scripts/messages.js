@@ -22,14 +22,20 @@ export default {
 		}
 		// constant version
 		obj.version = 1;
+		obj.size = 0;
 
-		buffer = Buffer.alloc(6);
+		if ("payload" in obj) {
+			obj.size = obj.payload.length;
+		}
+
+		buffer = Buffer.alloc(10);
 		buffer.writeUInt8(obj.version, 0);
 		buffer.writeUInt8(obj.type, 1);
-		buffer.writeUInt32LE(obj.id, 2);
+		buffer.writeUInt32LE(obj.size, 2);
+		buffer.writeUInt32LE(obj.id, 6);
 
 		// add the payload if it has one
-		if (obj.payload) {
+		if ("payload" in obj) {
 			buffer = Buffer.concat([buffer, obj.payload]);
 	    }
 		return buffer;
@@ -49,17 +55,19 @@ export default {
 
 		// error on wrong version
 		if (obj.version != 1) {
+			console.log(obj);
 			throw "bad version";
 			return null;
 		}
 
 		// otherwise continue
 		obj.type = buffer.readUInt8(1);
-		obj.id = buffer.readUInt32LE(2)
+		obj.size = buffer.readUInt32LE(2);
+		obj.id = buffer.readUInt32LE(6);
 
-		if (buffer.length > 6) {
+		if (buffer.length > 10) {
 			// cut off the first 6 bytes for the payload
-			obj.payload = buffer.slice(6);
+			obj.payload = buffer.slice(10);
 		}
 
 		return obj;

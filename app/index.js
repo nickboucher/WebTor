@@ -14,7 +14,7 @@ import 'buffer';
 
 import op from './scripts/op';
 import or from './scripts/or';
-import {Manual} from './scripts/signal';
+import {Manual, SockSigChannel} from './scripts/signal';
 import network, {Connection} from './scripts/network';
 
 /** window.TestPrint
@@ -22,6 +22,7 @@ import network, {Connection} from './scripts/network';
  * Function which will print out the string "testing" to the browser
  * console when called. This is the form that any exposed functions
  * should take if they need to be called by the browser.
+ * XXX: remove before deploy
  */
 window.TestPrint = () =>  {
 	console.log('testing');
@@ -53,6 +54,19 @@ $(document).ready(() =>  {
 				$("#sig-error").text("ERROR: " + e);
 			}
 		}
+	});
+});
+
+//XXX: remove before deploy
+$(document).ready(() => {
+	$("#bridge-connect").click(() => {
+		// grab the current hoststring
+		let hoststring = $("#hoststring").val();
+		let url = "ws://" + hoststring;
+		let sockSig = new SockSigChannel(url);
+		sockSig.sock.onopen = () => {
+			network.getChannel(url, 'sig', sockSig);
+		};
 	});
 });
 
