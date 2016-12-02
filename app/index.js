@@ -72,7 +72,6 @@ $(document).ready(() => {
 
 
  $(document).ready(() =>  {
-
 	 /** EventWorker installtion Function */
 	 function registerWorker() {
 		 if ('serviceWorker' in navigator) {
@@ -84,6 +83,13 @@ $(document).ready(() => {
 			 });
 			 // Registration was successful
 			 $('#status').text("Worker Installed and Running");
+			 // add message listener
+			 navigator.serviceWorker.onmessage = function(event) {
+				 if (event.data.type == "FROM_WORKER") {
+					 console.log("Page got message from worker.");
+					 window.postMessage({ type: "FROM_PAGE", text: "Hello from the webpage!" }, "*");
+				 }
+			}
 		 } else {
 			 $("body").html("<h1>Failure</h1><h3>Your browser is not currently supported. Please use a current version of Google Chrome or Firefox.</h3>");
 		 }
@@ -103,6 +109,21 @@ $(document).ready(() => {
 		 $(".iframe-body").attr("src", "example-request.html")
 	 });
 
+	 window.addEventListener("message", function(event) {
+     // We only accept messages from ourselves
+     if (event.source != window)
+       return;
+
+     if (event.data.type && (event.data.type == "FROM_EXTENSION")) {
+       //window.postMessage({ type: "FROM_EXTENSION", text: "Hello from the extension content_script!" }, "*");
+       console.log("Page got message from extension.");
+			 navigator.serviceWorker.controller.postMessage({
+            "message": "Hello from the page."
+        });
+     }
+   }, false);
+
 	 /* Automatically install workers on page load */
 	 registerWorker();
+
  });
