@@ -70,22 +70,26 @@ $(document).ready(() => {
 	});
 });
 
-/** EventWorker installtion bindings
- * For example only -- to be moved for final release */
+
  $(document).ready(() =>  {
-	 $("#register").click(() => {
+
+	 /** EventWorker installtion Function */
+	 function registerWorker() {
 		 if ('serviceWorker' in navigator) {
 			 navigator.serviceWorker.register('worker.js').then((registration) => {
-				 // Registration was successful
-				 alert('ServiceWorker registration successful with scope: ' + registration.scope);
 			 }).catch((err) => {
 				 // registration failed :(
-				 alert('ServiceWorker registration failed: ' + err);
+				 $("#status").text("Worker Installation Failed");
+				 return;
 			 });
+			 // Registration was successful
+			 $('#status').text("Worker Installed and Running");
 		 } else {
-			 alert("ServiceWorkers not supported.");
+			 $("body").html("<h1>Failure</h1><h3>Your browser is not currently supported. Please use a current version of Google Chrome or Firefox.</h3>");
 		 }
-	 });
+	 }
+
+	 /** Debugging use only -- unregisters all workers */
 	 $("#unregister").click(() => {
 		 navigator.serviceWorker.getRegistrations().then((registrations) => {
 			 for(let registration of registrations) {
@@ -97,4 +101,7 @@ $(document).ready(() => {
 	 $("#go").click(() => {
 		 $(".iframe-body").attr("src", "example-request.html")
 	 });
+
+	 /* Automatically install workers on page load */
+	 registerWorker();
  });

@@ -82,7 +82,9 @@ function build_app(watch) {
 		});
 	}
 
-	return rebundle();
+	return rebundle()
+				.once('error', function () { process.exit(1); })
+        .once('end', function () { process.exit(); });
 }
 
 function build_bridge(watch) {
