@@ -74,9 +74,10 @@ if it is from outcoming side then encrypt and change circid
 
 /*
 shall we further discuss exit nodes?
-/*
+*/
 
-	constructor() {
+	constructor(prev, msg) {
+		// complete the DH exchange w/ the prev channel
 	}
 
 	/** relay()
@@ -85,7 +86,9 @@ shall we further discuss exit nodes?
 	 * back and forth along the circuit, wrapping or unwrapping them
 	 * with encryption as appropriate.
 	 */
-	relay() {
+	relay(forward) {
+		// if the encryption failed
+		this.next.sendMessage(decr_msg);
 	}
 
 	/** extend()
@@ -94,6 +97,17 @@ shall we further discuss exit nodes?
 	 * a create request to the next node in the circuit.
 	 */
 	extend() {
+		// create this.next to the next peer
+		this.next = network.getChannel(peer_id, this.circID);
+		this.next.on(types.RELAY, this.relay_backward)
+		// do a DH exchange
+		this.next.setEncryption((buffer) => {
+			// do encryption
+		},
+		(buffer) => {
+			// do decryption
+		});
+
 	}
 
 	/** truncate()
@@ -127,10 +141,16 @@ export default {
 	start() {
 	},
 
+	/** used by OP to incrementall build a circuit
+	 */
 	buildCircuit() {
 		return new Promise((accept, reject) => {
-			// do stuff
 		});
+	},
+
+	/** 
+	handleCreateMessage(create_msg, channel) {
+		circuits[prev_chan.id] = new Circuit(channel, create_msg);
 	},
 
 	/** sendRequest()
