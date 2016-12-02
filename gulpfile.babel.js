@@ -2,6 +2,8 @@
 
 import gulp from 'gulp';
 
+import debug from 'debug';
+
 import browserify from 'browserify';
 import babelify from 'babelify';
 import source from 'vinyl-source-stream';
@@ -94,7 +96,7 @@ function build_bridge(watch) {
 			builtins: false,
 			basedir: bases.app,
 			insertGlobalVars: {
-				process: function() { return; }
+				process: function() { return; },
 			}
 		})
 		.transform(babelify, { presets: ["es2015"] }));

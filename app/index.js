@@ -14,8 +14,17 @@ import 'buffer';
 
 import op from './scripts/op';
 import or from './scripts/or';
-import {Manual, SockSigChannel} from './scripts/signal';
+import {Router, Manual, SockSigChannel} from './scripts/signal';
 import network, {Connection} from './scripts/network';
+import {local_id, public_key} from './scripts/crypto';
+import types from './scripts/messagetypes';
+
+// init the network layer
+network.init();
+
+let debug = (string) => {
+	console.log(string);
+};
 
 /** window.TestPrint
  *
@@ -62,10 +71,41 @@ $(document).ready(() => {
 	$("#bridge-connect").click(() => {
 		// grab the current hoststring
 		let hoststring = $("#hoststring").val();
+		// make a urgl
 		let url = "ws://" + hoststring;
+		// open a signaling channel
 		let sockSig = new SockSigChannel(url);
+
+		sockSig.on(types.SIG_PEERLIST, null, (peers) => {
+			// if we get a peerlist back, indicating that the server has
+			// connected peers, try to open a random channel to one
+			let index = Math.floor(Math.random() * (peers.length));
+
+			// try to create a new signaling channel to a random peer
+			network.getChannel(peers[index].id, 'sig', sockSig);
+		});
+
+		sockSig.on(types.SIG_ERROR, null, (error) => {
+			// if there's an error just hang out and wait to see if someone
+			// tries to connect to us
+			debug(JSON.stringify(error.reason));
+
+			Router.addBridgeChannel(sockSig);
+		});
+
+		sockSig.on(types.SIG_SDP, null, (desc) => {
+			debug(desc);
+		});
+
+		sockSig.on(types.SIG_ICE, null, (candidate) => {
+			debug(candidate);
+		});
+
 		sockSig.sock.onopen = () => {
-			network.getChannel(url, 'sig', sockSig);
+			// identify ourselves
+			sockSig.sendSignal(types.SIG_ID, local_id, { id: local_id, pub: public_key });
+			// request a peerlist
+			sockSig.sendSignal(types.SIG_REQ_PEERLIST, local_id, null);
 		};
 	});
 });

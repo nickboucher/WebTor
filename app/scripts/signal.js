@@ -23,26 +23,30 @@
 'use strict';
 
 import base32 from 'rfc-3548-b32';
-
 import Queue from 'qv2';
+import queue from 'async/queue';
+
+import toBuffer from 'blob-to-buffer';
+
 import messages from './messages';
 import types from './messagetypes';
 import {Channel} from './network';
 
-// this variable is used by all signaling channel types, and it allows
-// callbacks to be added to abstract signal channels so that messages of
-// any type from any source may be intercepted
-let static_callbacks = {};
+let debug = (string) => {
+	console.log(string);
+};
+
+var local_id;
 
 /** SignalChannel
  *
  * This class is an abstract superclass which implements most functions
  * which are common to different possible signaling channels.
  */
-class SignalChannel {
+export class SignalChannel {
 	constructor() {
 		this.callbacks = {};
-		this.onSignal = this.onSignal.bind(this);
+		this.handleSignal = this.handleSignal.bind(this);
 	}
 
 	/** on
@@ -56,15 +60,17 @@ class SignalChannel {
 		SignalChannel.addCallback(type, id, callback, this.callbacks);
 	}
 
-	/** onSignal
+	/** handleSignal
 	 *
 	 * This function should be invoked whenever a signal is received on
 	 * the concrete channel. data should be a direct binary blob received
 	 * on the channel. This function will then decode the signal, do any
 	 * error handling, and then invoke all the callbacks necessary appropriate
 	 * to the decoded signal.
+	 *
+	 * this function is ready to work as an asynchronous worker if desirable
 	 */
-	onSignal(data) {
+	handleSignal(data, callback) {
 		try {
 			let msg = messages.decodeMessage(data);
 
@@ -74,12 +80,23 @@ class SignalChannel {
 					let payload = messages.decodeMessagePayload(msg.type, msg.payload);
 					let signal = messages.decodeSignalPayload(payload.type, payload.payload);
 					this.invokeCallbacks(payload.type, payload.id, signal);
+					if (callback) {
+						callback();
+					}
 					break;
 				default:
-					console.log('bad message received');
+					if (callback) {
+						callback('bad message received');
+					} else {
+						debug('bad message received');
+					}
 			}
 		} catch(e) {
-			console.log(e);
+			if (callback) {
+				callback(e);
+			} else {
+				debug(e);
+			}
 		}
 	}
 
@@ -90,7 +107,6 @@ class SignalChannel {
 	 * class
 	 */
 	invokeCallbacks(type, id, data) {
-		SignalChannel.invokeCallbacks(type, id, data, static_callbacks, this);
 		SignalChannel.invokeCallbacks(type, id, data, this.callbacks, this);
 	}
 
@@ -130,7 +146,7 @@ class SignalChannel {
 	 * shortcut for sending an offer
 	 */
 	sendSDP(id, desc) {
-		this.sendSignal(types.SIG_SDP, id, JSON.stringify(desc));
+		this.sendSignal(types.SIG_SDP, id, desc);
 	}
 
 	/** sendCandidate
@@ -138,7 +154,7 @@ class SignalChannel {
 	 * shortcut for sending an ICE candidate
 	 */
 	sendCandidate(id, candidate) {
-		this.sendSignal(types.SIG_ICE, id, JSON.stringify(candidate));
+		this.sendSignal(types.SIG_ICE, id, candidate);
 	}
 
 	/** addCallback
@@ -210,9 +226,15 @@ export class SignalRouter extends SignalChannel {
 	constructor() {
 		super();
 
+		this.handleSignal = this.handleSignal.bind(this);
+
 		this.sigchannels = {};
 		this.sigchannels['bridge'] = [];
 		this.sigchannels['manual'] = [];
+	}
+
+	handleSignal(signal, type, id) {
+		this.invokeCallbacks(type, id, signal);
 	}
 
 	/** addBridgeChannel
@@ -221,7 +243,7 @@ export class SignalRouter extends SignalChannel {
 	 * fallback.
 	 */
 	addBridgeChannel(chan) {
-		chan.on(null, null, this.onSignal);
+		chan.on(null, null, this.handleSignal);
 		this.sigchannels['bridge'].push(chan);
 	}
 
@@ -231,7 +253,7 @@ export class SignalRouter extends SignalChannel {
 	 * fallback
 	 */
 	addManualChannel(chan) {
-		chan.on(null, null, this.onSignal);
+		chan.on(null, null, this.handleSignal);
 		this.sigchannels['manual'].push(chan);
 	}
 
@@ -241,7 +263,7 @@ export class SignalRouter extends SignalChannel {
 	 * as a primary signaling mechanism.
 	 */
 	addPeerSigChannel(chan) {
-		chan.on(null, null, this.onSignal);
+		chan.on(null, null, this.handleSignal);
 		this.sigchannels[chan.id] = chan;
 	}
 
@@ -274,7 +296,7 @@ export class PeerSigChannel extends SignalChannel {
 
 		// get or create a channel for the new circuit
 		this.chan = conn.channel(label, options);
-		this.chan.on(types.SIGNAL, super.onSignal);
+		this.chan.on(types.SIGNAL, this.handleSignal);
 	}
 
 	/** sendSignal
@@ -297,11 +319,18 @@ export class SockSigChannel extends SignalChannel {
 	constructor(url) {
 		super();
 		// explicit prebinding of callback methods
-		this.onClose = this.onClose.bind(this);
+		this.handleClose = this.handleClose.bind(this);
+		this.handleSignalEvent = this.handleSignalEvent.bind(this);
 
 		if (url) {
 			this.open(url);
 		}
+	}
+
+	handleSignalEvent(sig_evt) {
+		toBuffer(sig_evt.data, (err, buffer) => {
+			this.handleSignal(buffer);
+		});
 	}
 
 	/** open
@@ -315,8 +344,8 @@ export class SockSigChannel extends SignalChannel {
 		}
 
 		this.sock = new WebSocket(url);
-		this.sock.onmessage = this.onSignal;
-		this.sock.onclose = this.onClose;
+		this.sock.onmessage = this.handleSignalEvent;
+		this.sock.onclose = this.handleClose;
 	}
 
 	/** close
@@ -327,12 +356,12 @@ export class SockSigChannel extends SignalChannel {
 		this.sock.close();
 	}
 
-	/** onClose
+	/** handleClose
 	 *
 	 * This function will be invoked when the internal websocket is closed.
 	 */
-	onClose(data) {
-		console.log("Connection closed.");
+	handleClose(data) {
+		debug("connection closed.");
 	}
 
 	/** sendSignal
@@ -368,9 +397,9 @@ export class ManualSigChannel extends SignalChannel {
 		this.hooks.push(callback);
 	}
 
-	onSignal(signal) {
+	handleSignal(signal) {
 		let data = base32.decode(signal);
-		return super.onSignal(data);
+		return super.handleSignal(data);
 	}
 
 	/** sendSignal
@@ -420,6 +449,6 @@ export default {
 	 * whenever a SIG_NEW_PEER message is received.
 	 */
 	on(type, id, callback) {
-		SignalChannel.addCallback(type, id, callback, static_callbacks);
+		SignalChannel.addCallback(type, id, callback, Router.callbacks);
 	},
 };

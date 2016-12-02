@@ -97,8 +97,7 @@ Base cells have the format:
 {
 	"version": (byte),
 	"type": (byte),
-	"id": (long),
-	"payload": (Blob)
+	"payload": (Buffer)
 }
 ```
 
@@ -109,7 +108,7 @@ Relay cells are of the form:
 ```json
 {
 	"command": (byte),
-	"payload": (Blob)
+	"payload": (Buffer)
 }
 ```
 
@@ -119,9 +118,11 @@ and signal cells are of the form:
 {
 	"type": (byte),
 	"id": (long),
-	"payload": (Blob)
+	"payload": (Buffer)
 }
 ```
+
+where `id` is the destination id for all but the `SIG_ID` message, in which case it's the sender's `id`. This should only be used for direct connections.
 
 #### Binary Encoding
 

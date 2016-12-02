@@ -17,6 +17,7 @@ import network from './network';
 export var peers = {};
 
 var circuits = {};
+var local_id;
 
 /** Circuit
  *
@@ -40,43 +41,40 @@ export class Circuit {
 	 */
 
 
+	/*
+	constructor(prev, msg)
+	does the dh handshake
 
-/*
-node that creates a circuit has:
-- list of the ip address of the circuit
-- list of symmetric key to communicate with
-- circid for the connection with the next node
-(-onion key g? of the next node)
-the construction will
-- send create to the next node to set up symmetric key by deffie-hellman
-- send create embedded in relay_extend commands (symmetrically encrypted)
-- send something to do to the last node of the circuit by encrypting in reverse order
-the truncation will
-- send truncate embedded in relays
--update lists
-the destroy will
-- send a destroy to the next
-- delete the lists
-if:
-- receives a created -> continue building circuit
-- receives a relay -> decrypt in order */
+	Arguments:
+	- prev: channel coming from the network
+	- msg: create msg coming from that channel
+	*/
+	constructor(prev, msg) {
+		//dh exchange
+		var dh = crypto.get_dh()
+		dh.generateKeys();
+		var dh_pub = message.decodeMessagePayload(msg.type,
+		crypto.decrypt_rsa(msg.payload)).pub;
+		var password = dh.computeSecret(dh_pub).toString('hex');
+		let pub_key = peers[prev.id].pub;
+		let payload = crypto.encrypt_rsa(pub_key, messages.encodeMessagePayload(types.CREATED, {
+			pub: dh.getPublicKey() // DH public key
+		}));
+		let message = messages.encodeMessage({
+			type: types.CREATED,
+			payload: payload
+		});
+		prev.sendMessage(message);
 
-/*
-relay node has:
-- hash table of the circId incoming and outcoming, and symmetric key with incoming
-this node will do
-- if receives a create, set the symmetric key + send created back
-- if receives an extend then create a new connection with the next node
-- if receives a relay: if it is from incoming side then decrypt and change circId
-if it is from outcoming side then encrypt and change circid
-- if receives destroy, send destroy to next with next circid and delete entry in table
-- if receives a truncate, send destroy to next with correct circid, and becomes an exit node */
+		this.prev = prev;
 
-/*
-shall we further discuss exit nodes?
-/*
-
-	constructor() {
+		// set aes encryption
+		this.prev.setEncryption((buffer) => {
+ 				return encrypt_aes(password, buffer);
+	 		},
+	 		(buffer) => {
+	 			return decrypt_aes(password, buffer);
+	 		});
 	}
 
 	/** relay()
@@ -84,8 +82,45 @@ shall we further discuss exit nodes?
 	 * This function implements the TOR Relay method, passing messages
 	 * back and forth along the circuit, wrapping or unwrapping them
 	 * with encryption as appropriate.
+	 msg is unencrypted has attribute id_next if there relay.EXTEND
 	 */
-	relay() {
+	relay(forward, msg) {
+		if (forward){
+			if (!msg.recognized){
+				if(type.CREATE){
+					constructor(prev, msg);
+				};
+				if(type.EXTEND){
+					network.channel('new');
+					let pub_key = peers[msg.id_next].pub;
+					let payload = crypto.encrypt_rsa(pub_key, messages.encodeMessagePayload(types.CREATE, {
+						pub: dh.getPublicKey() // DH public key
+					}));
+					let message = messages.encodeMessage({
+						type: types.CREATE, //this information is already in the payload
+						payload: payload
+					});
+					prev.sendMessage(message);
+				};
+				if(type.TRUNCATE){
+
+				};
+			} else {
+				let pub_key = peers[prev.id].pub;
+				let payload = crypto.encrypt_rsa(pub_key, messages.encodeMessagePayload(types.CREATED, {
+					pub: dh.getPublicKey() // DH public key
+				}));
+				let message = messages.encodeMessage({
+					type: types.CREATED,
+					payload: payload
+				});
+				prev.sendMessage(message);
+			}
+		} else {
+
+		}
+		// if the encryption failed
+		this.next.sendMessage(decr_msg);
 	}
 
 	/** extend()
@@ -94,15 +129,22 @@ shall we further discuss exit nodes?
 	 * a create request to the next node in the circuit.
 	 */
 	extend() {
+		// create this.next to the next peer
+		this.next = network.getChannel(peer_id, this.circID);
+		this.next.on(types.RELAY, this.relay_backward);
+		// do a DH exchange
+
 	}
 
+	/*
 	/** truncate()
 	 *
 	 * This function will truncate the TOR circuit from this node, sending
 	 * a destroy request to the next node in the circuit.
-	 */
+
 	truncate() {
 	}
+	*/
 
 	/** destroy()
 	 *
@@ -125,12 +167,20 @@ export default {
 	 * circuits as it gets connected to the network.
 	 */
 	start() {
+		// generate local_id
+		network.init(local_id);
 	},
 
+	/** used by OP to incrementall build a circuit
+	 */
 	buildCircuit() {
 		return new Promise((accept, reject) => {
-			// do stuff
 		});
+	},
+
+	/**
+	handleCreateMessage(create_msg, channel) {
+		circuits[prev_chan.id] = new Circuit(channel, create_msg);
 	},
 
 	/** sendRequest()
