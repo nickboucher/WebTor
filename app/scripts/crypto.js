@@ -66,10 +66,9 @@ export default {
 	computes the rsa encryption with 512b key
 
 	arguments:
-	- key is a key instance (512b)
 	- encrypted is the cypher text (with 512b key)
 	*/
-	decrypt_rsa(key, encrypted) {
+	decrypt_rsa(encrypted) {
 		return decrypted = key.decrypt(encrypted, 'utf8');
 	},
 
