@@ -70,10 +70,10 @@ export class Circuit {
 
 		// set aes encryption
 		this.prev.setEncryption((buffer) => {
- 				encrypt_aes(password, buffer)
+ 				return encrypt_aes(password, buffer);
 	 		},
 	 		(buffer) => {
-	 			decrypt_aes(password, buffer)
+	 			return decrypt_aes(password, buffer);
 	 		});
 	}
 
@@ -82,8 +82,43 @@ export class Circuit {
 	 * This function implements the TOR Relay method, passing messages
 	 * back and forth along the circuit, wrapping or unwrapping them
 	 * with encryption as appropriate.
+	 msg is unencrypted has attribute id_next if there relay.EXTEND
 	 */
-	relay(forward) {
+	relay(forward, msg) {
+		if (forward){
+			if (!msg.recognized){
+				if(type.CREATE){
+					constructor(prev, msg);
+				};
+				if(type.EXTEND){
+					network.channel('new');
+					let pub_key = peers[msg.id_next].pub;
+					let payload = crypto.encrypt_rsa(pub_key, messages.encodeMessagePayload(types.CREATE, {
+						pub: dh.getPublicKey() // DH public key
+					}));
+					let message = messages.encodeMessage({
+						type: types.CREATE, //this information is already in the payload
+						payload: payload
+					});
+					prev.sendMessage(message);
+				};
+				if(type.TRUNCATE){
+
+				};
+			} else {
+				let pub_key = peers[prev.id].pub;
+				let payload = crypto.encrypt_rsa(pub_key, messages.encodeMessagePayload(types.CREATED, {
+					pub: dh.getPublicKey() // DH public key
+				}));
+				let message = messages.encodeMessage({
+					type: types.CREATED,
+					payload: payload
+				});
+				prev.sendMessage(message);
+			}
+		} else {
+
+		}
 		// if the encryption failed
 		this.next.sendMessage(decr_msg);
 	}
@@ -96,18 +131,20 @@ export class Circuit {
 	extend() {
 		// create this.next to the next peer
 		this.next = network.getChannel(peer_id, this.circID);
-		this.next.on(types.RELAY, this.relay_backward)
+		this.next.on(types.RELAY, this.relay_backward);
 		// do a DH exchange
 
 	}
 
+	/*
 	/** truncate()
 	 *
 	 * This function will truncate the TOR circuit from this node, sending
 	 * a destroy request to the next node in the circuit.
-	 */
+
 	truncate() {
 	}
+	*/
 
 	/** destroy()
 	 *
