@@ -16,6 +16,8 @@ import network from './network';
  */
 export var peers = {};
 
+var circuits = {};
+
 /** Circuit
  *
  * The Circuit class encapsulates the TOR
@@ -125,6 +127,12 @@ export default {
 	start() {
 	},
 
+	buildCircuit() {
+		return new Promise((accept, reject) => {
+			// do stuff
+		});
+	},
+
 	/** sendRequest()
 	 *
 	 * This method is a high-level interface used to send a single request
@@ -133,6 +141,9 @@ export default {
 	 * available, it will synchronously create one and then send the request.
 	 */
 	sendRequest() {
+		// pick a circuit
+		// or create one synchronously
+		// send RELAY_{START,REQUEST}
 	},
 
 	/** addPeer()
