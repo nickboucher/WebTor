@@ -95,7 +95,8 @@ $(document).ready(() => {
 			 for(let registration of registrations) {
 				 registration.unregister();
 			 }
-			 alert("Removed all workers.")
+			 $("#status").text("Workers Uninstalled");
+			 $("#status").css("color", "red");
 		 });
 	 });
 	 $("#go").click(() => {
