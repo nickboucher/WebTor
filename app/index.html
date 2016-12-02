@@ -7,7 +7,7 @@
 
 	<title>WebTor Start Page</title>
 
-	<link rel="stylesheet" href="styles/main.css">
+	<link rel="stylesheet" href="main.css">
 </head>
 <body>
 	<!-- Container Div to enable aesthetic layout -->
@@ -18,20 +18,22 @@
 		<div class="webtor-nav">
 			<!-- Form for manual signaling -->
 			<div id="sig-error"></div><br/>
-			Send: <textarea rows="4" cols="50" id="sig-send" disabled="true"></textarea><br/>
-			Recv: <textarea rows="4" cols="50" id="sig-recv"></textarea><br/>
+			Send: <textarea rows="4" cols="50" id="sig-send" disabled="true"></textarea>
+			Recv: <textarea rows="4" cols="50" id="sig-recv"></textarea>
 			<button id="man-start" type="button">Start Connection</button>
 			<button id="man-recv" type="button">Receive Connection</button>
 			<button id="man-accept" type="button">Accept Data</button>
-			<button id="man-next" type="button">Next Signal</button><br/><br/>
+			<button id="man-next" type="button">Next Signal</button>
 
 
 			<!-- Form to create a bridge -->
 			Host: <input type="text" id="hoststring" placeholder="localhost:9000">
 			<button id="bridge-connect" type="button">Connect</button><br/><br/>
 
+			<hr>
+
 			<!-- Buttons enable testing of the EventWorker installations -->
-			<button id="register" type="button">Register Worker</button>
+			<span id="status" style="color:green;"></span>
 			<button id="unregister" type="button">Unregister Workers</button><br>
 			URL: <input type="text" name="adress" placeholder="Not Implemented">
 			<button id="go" type="button">Load Page</button>
