@@ -35,7 +35,12 @@
 import types from './messagetypes';
 import sig, {Router} from './signal';
 
+let debug = (string) => {
+	console.log(string);
+};
+
 export var connections = {};
+var local_id;
 
 /** Connection
  *
@@ -78,10 +83,10 @@ export class Connection {
 		this.conn.onicecandidate = this.handleIceCandidate;
 		this.conn.ondatachannel = this.handleDataChannel;
 		this.conn.oniceconnectionstatechange = evt => {
-			console.log('conn ' + this.id + ': ice connection state: ' + this.conn.iceConnectionState);
+			debug('conn ' + this.id + ': ice connection state: ' + this.conn.iceConnectionState);
 		};
 		this.conn.onsignalingstatechange = evt => {
-			console.log('conn ' + this.id + ': signaling state: ' + this.conn.signalingState);
+			debug('conn ' + this.id + ': signaling state: ' + this.conn.signalingState);
 		};
 		//this.conn.onaddstream = this.onAddStream;
 		
@@ -116,7 +121,7 @@ export class Connection {
 	}
 
 	signal(evstr) {
-		console.log('connection ' + this.id + ' ' + evstr);
+		debug('connection ' + this.id + ' ' + evstr);
 		if (evstr in this.callbacks) {
 			for (let cb of this.callbacks[evstr]) {
 				cb();
@@ -168,7 +173,7 @@ export class Connection {
 	 * channel in indicate the new ice candidate to its peer.
 	 */
 	handleIceCandidate(evt) {
-		console.log('conn ' + this.id + ': got ice candidate: ' + evt.candidate);
+		debug('conn ' + this.id + ': got ice candidate: ' + evt.candidate);
 		if (evt && evt.candidate) {
 			this.signalingChannel.sendCandidate(this.id, evt.candidate);
 		}
@@ -216,7 +221,7 @@ export class Connection {
 	 * This function will log errors.
 	 */
 	handleError(error) {
-		console.log(error.name + ": " + error.message);
+		debug(error.name + ": " + error.message);
 	}
 }
 
@@ -318,7 +323,7 @@ export class Channel {
 	 * handles messages received on the channel.
 	 */
 	handleMessage(evt) {
-		console.log('received message on chan ' + this.label + ': ' + evt.data);
+		debug('received message on chan ' + this.label + ': ' + evt.data);
 		let raw_msg = evt.data;
 		if (this.dec) {
 			raw_msg = this.dec(raw_msg);
@@ -339,7 +344,7 @@ export class Channel {
 	 * Handles the status change of the channel to open.
 	 */
 	handleOpen() {
-		console.log("channel " + this.label + " opened");
+		debug("channel " + this.label + " opened");
 	}
 
 	/** handleClose
@@ -347,7 +352,7 @@ export class Channel {
 	 * Handles the status change of the channel to closed.
 	 */
 	handleClose() {
-		console.log("channel " + this.label + " opened");
+		debug("channel " + this.label + " opened");
 	}
 
 	/** handleError
@@ -355,7 +360,7 @@ export class Channel {
 	 * Print to the console on an error
 	 */
 	handleError(error) {
-		console.log(error.name + ": " + error.message);
+		debug(error.name + ": " + error.message);
 	}
 
 	/** addCallback
@@ -372,10 +377,12 @@ export class Channel {
 }
 
 export default {
-	start() {
+	init() {
 		sig.init();
 		sig.on(types.SIG_SDP, null, (desc, type, id, chan) => {
-			this.makeConnection(id);
+			if (desc.type === 'offer' && !(id in connections)) {
+				connections[id] = new Connection(id, chan);
+			}
 		});
 	},
 

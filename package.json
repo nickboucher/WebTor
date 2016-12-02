@@ -41,6 +41,8 @@
     "webpack": "^1.13.3"
   },
   "dependencies": {
+    "async": "^2.1.4",
+    "blob-to-buffer": "^1.2.6",
     "buffer": "^5.0.1",
     "jquery": "^3.1.1",
     "net": "^1.0.2",
@@ -50,8 +52,6 @@
     "qv2": "^2.0.1",
     "rfc-3548-b32": "0.0.2",
     "webcrypto": "^0.1.0",
-    "webrtc": "^1.14.1",
-    "webrtc-adapter": "^2.0.8",
-    "wrtc": "0.0.61"
+    "webrtc-adapter": "^2.0.8"
   }
 }

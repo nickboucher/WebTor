@@ -16,7 +16,7 @@ export default {
 	 */
 	encodeMessage(obj) {
 		let buffer;
-		if (!"type" in obj || !"id" in obj) {
+		if (!"type" in obj) {
 			throw "Bad object";
 			return null;
 		}
@@ -28,11 +28,10 @@ export default {
 			obj.size = obj.payload.length;
 		}
 
-		buffer = Buffer.alloc(10);
+		buffer = Buffer.alloc(6);
 		buffer.writeUInt8(obj.version, 0);
 		buffer.writeUInt8(obj.type, 1);
 		buffer.writeUInt32LE(obj.size, 2);
-		buffer.writeUInt32LE(obj.id, 6);
 
 		// add the payload if it has one
 		if ("payload" in obj) {
@@ -63,11 +62,13 @@ export default {
 		// otherwise continue
 		obj.type = buffer.readUInt8(1);
 		obj.size = buffer.readUInt32LE(2);
-		obj.id = buffer.readUInt32LE(6);
 
-		if (buffer.length > 10) {
+		if (buffer.length === 6 + obj.size) {
 			// cut off the first 6 bytes for the payload
-			obj.payload = buffer.slice(10);
+			obj.payload = buffer.slice(6);
+		} else {
+			throw "bad size message";
+			return null;
 		}
 
 		return obj;
@@ -306,17 +307,15 @@ export default {
 	},
 
 	encodeSignalPayload(type, signal) {
-		let buffer = Buffer.from(signal);
 		switch(type) {
 			case types.SIG_ID:
-				throw "unimplemented";
-				return buffer;
+				return Buffer.from(JSON.stringify(signal));
 
 			case types.SIG_SDP:
-				return buffer;
+				return Buffer.from(JSON.stringify(signal));
 
 			case types.SIG_ICE:
-				return buffer;
+				return Buffer.from(JSON.stringify(signal));
 
 			case types.SIG_NEW_PEER:
 				throw "unimplemented";
@@ -327,12 +326,13 @@ export default {
 				return buffer;
 
 			case types.SIG_REQ_PEERLIST:
-				throw "unimplemented";
-				return buffer;
+				return Buffer.from(JSON.stringify(signal));
 
 			case types.SIG_PEERLIST:
-				throw "unimplemented";
-				return buffer;
+				return Buffer.from(JSON.stringify(signal));
+
+			case types.SIG_ERROR:
+				return Buffer.from(JSON.stringify(signal));
 
 			default:
 				throw "bad signal type";
@@ -346,8 +346,7 @@ export default {
 
 		switch(type) {
 			case types.SIG_ID:
-				throw "unimplemented";
-				return buffer.toString();
+				return JSON.parse(buffer.toString());
 
 			case types.SIG_SDP:
 				return JSON.parse(buffer.toString());
@@ -364,12 +363,13 @@ export default {
 				return buffer.toString();
 
 			case types.SIG_REQ_PEERLIST:
-				throw "unimplemented";
-				return buffer.toString();
+				return JSON.parse(buffer.toString());
 
 			case types.SIG_PEERLIST:
-				throw "unimplemented";
-				return buffer.toString();
+				return JSON.parse(buffer.toString());
+
+			case types.SIG_ERROR:
+				return JSON.parse(buffer.toString());
 
 			default:
 				throw "bad signal type";
