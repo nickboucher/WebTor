@@ -8,8 +8,6 @@
 import NodeRSA from 'node-rsa';
 import crypto from 'crypto';
 
-import {public_key, local_id} from './crypto';
-
 export var public_key;
 export var local_id;
 
