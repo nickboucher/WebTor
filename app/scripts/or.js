@@ -17,7 +17,7 @@ import network from './network';
 export var peers = {};
 
 var circuits = {};
-var id;
+var local_id;
 
 /** Circuit
  *
@@ -140,8 +140,8 @@ export default {
 	 * circuits as it gets connected to the network.
 	 */
 	start() {
-		// generate id
-		network.init(id);
+		// generate local_id
+		network.init(local_id);
 	},
 
 	/** used by OP to incrementall build a circuit
