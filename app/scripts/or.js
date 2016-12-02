@@ -78,7 +78,31 @@ shall we further discuss exit nodes?
 */
 
 	constructor(prev, msg) {
-		// complete the DH exchange w/ the prev channel
+		//dh exchange
+		var dh = crypto.get_dh()
+		dh.generateKeys();
+		var dh_pub = message.decodeMessagePayload(msg.type,
+		crypto.decrypt_rsa(msg.payload)).pub;
+		var password = dh.computeSecret(dh_pub).toString('hex');
+		let pub_key = peers[prev.id].pub;
+		let payload = crypto.encrypt_rsa(pub_key, messages.encodeMessagePayload(types.CREATED, {
+			pub: dh.getPublicKey() // DH public key
+		}));
+		let message = messages.encodeMessage({
+			type: types.CREATED,
+			payload: payload
+		});
+		prev.sendMessage(message);
+
+		this.prev = prev;
+
+		// set aes encryption
+		this.prev.setEncryption((buffer) => {
+ 				encrypt_aes(password, buffer)
+	 		},
+	 		(buffer) => {
+	 			decrypt_aes(password, buffer)
+	 		});
 	}
 
 	/** relay()
@@ -102,12 +126,6 @@ shall we further discuss exit nodes?
 		this.next = network.getChannel(peer_id, this.circID);
 		this.next.on(types.RELAY, this.relay_backward)
 		// do a DH exchange
-		this.next.setEncryption((buffer) => {
-			// do encryption
-		},
-		(buffer) => {
-			// do decryption
-		});
 
 	}
 
@@ -151,7 +169,7 @@ export default {
 		});
 	},
 
-	/** 
+	/**
 	handleCreateMessage(create_msg, channel) {
 		circuits[prev_chan.id] = new Circuit(channel, create_msg);
 	},

@@ -32,8 +32,7 @@ const PRIME_STR = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67C
 const PRIME = new Uint8Array(Buffer.from(PRIME_STR, 'hex'));
 const GENERATOR = new Uint8Array([2]);
 import crypto2 from 'diffie-hellman/browser';
-var dh = crypto2.createDiffieHellman(PRIME,0,GENERATOR,0);
-dh.generateKeys();
+var dh =
 
 
 export default {
@@ -46,8 +45,8 @@ export default {
     - public_key: result of dh.getPublicKey() from the control proxy node
     *
     */
-    get_password(public_key){
-        return dh1.computeSecret(public_key).toString('hex');
+    get_dh(){
+        return crypto2.createDiffieHellman(PRIME,0,GENERATOR,0);
     },
 	/*
 	encrypt_rsa(key, text)
