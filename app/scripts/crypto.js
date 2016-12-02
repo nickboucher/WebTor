@@ -8,10 +8,23 @@
 import NodeRSA from 'node-rsa';
 import crypto from 'crypto';
 
+import {public_key, local_id} from './crypto';
+
+export var public_key;
+export var local_id;
+
+
 //RSA
 //uses rsa implementation by Tom Wy http://www-cs-students.stanford.edu/~tjw/jsbn/
-//creation of a RSA environment, key management has to be improved
+//creation of a RSA environment that contains a private key and a public key
 var key = new NodeRSA({b: 512});
+public_key = key.exportKey('public');
+
+const secret = 'abcdefg';
+const hash = crypto.createHmac('sha256', secret)
+                  .update(key.exportKey('public'))
+                  .digest('hex');
+local_id = parseInt(hash.slice(0,8),16);
 
 // // or load from a .pem file see https://www.npmjs.com/package/node-rsa
 // var key = new NodeRSA('-----BEGIN RSA PRIVATE KEY-----\n'+
@@ -23,7 +36,7 @@ var key = new NodeRSA({b: 512});
 //                   'QEEk1jTkp8ECIQCHhsoq90mWM/p9L5cQzLDWkTYoPI49Ji+Iemi2T5MRqwIgQl07\n'+
 //                   'Es+KCn25OKXR/FJ5fu6A6A+MptABL3r8SEjlpLc=\n'+
 //                   '-----END RSA PRIVATE KEY-----');
-// key.importKey(keyData, [format]);
+// key.importKey(keyData, [format]); format = 'public' or 'private'
 // key.exportKey([format]);
 
 export default {
@@ -84,4 +97,6 @@ export default {
 		decrypted += decipher.final('utf8');
 		return decrypted;
 	},
+
+
 }
