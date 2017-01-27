@@ -1,6 +1,15 @@
 # WebTor
 Final Project for Harvard's CS263
 
+We attempted to implement a TOR-like network that operates entirely within the
+browser in which peers act as relay nodes. Peers have the option of acting as a
+normal relay node (default) or an exit node (requires installation of Chrome
+Extension).
+
+This project is not yet fully implemented and does not have a timeline for
+completion at this time. Most components are partially implemented and
+directions for running the in-progress build can be found below.
+
 ## Installation
 
 To install WebRTC, execute
