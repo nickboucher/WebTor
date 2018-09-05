@@ -10,6 +10,9 @@ This project is not yet fully implemented and does not have a timeline for
 completion at this time. Most components are partially implemented and
 directions for running the in-progress build can be found below.
 
+A formal research paper documenting this project can be found at the root
+of the repository.
+
 ## Installation
 
 To install WebRTC, execute
